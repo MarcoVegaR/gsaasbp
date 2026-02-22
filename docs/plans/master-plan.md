@@ -91,6 +91,7 @@ Request
 >     $initialPivotsB = DB::table('model_has_roles')
 >         ->where('team_id', $tenantB->id)
 >         ->where('model_id', $user->id)
+>         ->where('model_type', get_class($user))
 >         ->count();
 >
 >     app(AssignRolesToMember::class)->execute($tenantA->id, $user->id, []);
@@ -109,13 +110,15 @@ Request
 >     $finalPivotsB = DB::table('model_has_roles')
 >         ->where('team_id', $tenantB->id)
 >         ->where('model_id', $user->id)
+>         ->where('model_type', get_class($user))
 >         ->count();
 >     expect($finalPivotsB)->toBe($initialPivotsB);
 > });
 > ```
 
 10. **Auditoría Particionada y Runbook Serializado:** `activity_log` particionada nativamente por `RANGE(created_at)`.
-    - **Runbook de Retención (Scheduler Mutex):** Procesar máximo **1 partición pending detach** por tabla, protegido por un lock del scheduler (mutex) para no encolar bloqueos.
+    - **Esquema Estricto:** La tabla `activity_log` **no tendrá default partition** (las particiones se crean por adelantado) para permitir operaciones concurrentes.
+    - **Runbook de Retención (Scheduler Mutex):** Procesar máximo **1 partición pending detach** por tabla, protegido por un lock del scheduler (mutex) para no encolar bloqueos. El scheduler ejecuta el detach en **autocommit** (fuera de transacciones).
     - **Flujo Operativo:** `DETACH ... CONCURRENTLY` → esperar → `FINALIZE` → `DROP` asíncrono. Si el *detach* concurrente falla, reintentar *FINALIZE* registrando incidente; no lanzar un segundo detach hasta cerrar el anterior.
 
 ### Bloque D: Eventos, Storage y DX
@@ -145,7 +148,7 @@ Request
 *Para garantizar performance en particionado PostgreSQL:*
 - Se prohíbe consultar `activity_log` libremente por la aplicación. Todo acceso debe pasar por un repositorio único (ej. `ForensicLogRepository`).
 - La API de este repositorio **rechazará lanzando una excepción** cualquier query que no provea un rango de `created_at` (partition key).
-- **Test Robusto de Integración (CI):** Se ejecutará `EXPLAIN (FORMAT JSON)` sobre las consultas del repositorio. La aserción validará de forma tolerante el *Partition Pruning* comprobando que `Subplans Removed > 0` (cuando el rango de fechas cubra menos que el total de particiones) o que el número de subplans/relations escaneados en el nodo `Append` sea menor al total de particiones existentes.
+- **Test Robusto de Integración (CI):** El test usa rangos que cubren menos particiones que el total y ejecuta `EXPLAIN (FORMAT JSON)`. Validará de forma tolerante el *Partition Pruning* comprobando que `Subplans Removed > 0` cuando aplique, o que el número de subplans/relations escaneados en el nodo `Append` sea menor al total. Si el pruning ocurre en fase de ejecución, se permite `EXPLAIN (ANALYZE, FORMAT JSON)` como fallback.
 
 ---
 
