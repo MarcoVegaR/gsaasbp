@@ -7,47 +7,56 @@ description: Plan de ejecución detallado para la Fase 2 (Sistema de Diseño, UI
 **Objetivo principal:** Establecer la arquitectura frontend escalable basada en React 19, Inertia.js v2 y Tailwind CSS v4, garantizando una base de componentes robusta (shadcn/ui), un enrutamiento eficiente y pruebas de integración E2E con Playwright.
 
 ## 1. Configuración del Entorno Frontend
-- [ ] Verificar e imponer React 19 como estándar absoluto. Cualquier starter kit que instale React 18 debe ser sobreescrito en el primer commit y validado vía CI (`npm ls react` / `pnpm why react`).
-- [ ] Requisito de tooling: Imponer Node 20+ en el entorno local y de CI.
-- [ ] Actualizar y configurar Vite (`vite.config.ts`) para soportar React e Inertia de forma óptima.
-- [ ] Configurar Tailwind CSS v4. **Decisión de Producto:** El baseline de navegadores soportados es estrictamente Safari 16.4+, Chrome 111+ y Firefox 128+. No se dará soporte a legacy browsers.
-- [ ] Asegurar que `tsconfig.json` tenga habilitado el modo `strict` para garantizar type safety en todo el frontend.
+- [ ] **Package Manager Único:** `npm` es el único gestor permitido.
+  - CI debe fallar explícitamente si existe `pnpm-lock.yaml` o `yarn.lock`.
+  - CI debe ejecutar `npm ci` para garantizar reproducibilidad.
+- [ ] Verificar e imponer React 19 como estándar absoluto. Fijar versiones exactas de `react` y `react-dom` en `package.json`.
+  - CI debe ejecutar `npm ls react react-dom` (validar que ambas sean 19.x) y fallar si hay múltiples versiones en el árbol (duplicados).
+- [ ] Requisito de tooling: Imponer `engines: { "node": ">=20" }` en `package.json`.
+  - CI debe ejecutar `npm config set engine-strict true` (o validar `node -v`) antes de instalar, para forzar el enforcement.
+- [ ] Actualizar y configurar Vite (`vite.config.ts`).
+- [ ] Configurar Tailwind CSS v4. **Decisión de Producto:** Baseline de navegadores Safari 16.4+, Chrome 111+ y Firefox 128+.
+  - *Nota contractual (Plan B):* Si se exige soporte legacy estricto a futuro, se documenta y se congela en Tailwind v3.4.
+- [ ] Asegurar que `tsconfig.json` tenga habilitado el modo `strict`.
 
 ## 2. Sistema de Componentes y Diseño (shadcn/ui)
-- [ ] Inicializar y configurar `shadcn/ui` en el proyecto mediante MCP.
-- [ ] **Política Estricta de shadcn/ui:** shadcn genera código, no es una dependencia normal. 
-  - Fijar una carpeta estándar (`resources/js/components/ui`).
-  - Implementar una regla/lint: No se editan los primitives de shadcn sin pasar por un wrapper interno.
-  - Los upgrades o regeneración de componentes requieren un PR dedicado exclusivo.
-- [ ] Integrar componentes base esenciales (Button, Input, Card, Modal, Dropdown) asegurando accesibilidad (a11y).
-- [ ] Crear layouts base separados: `TenantLayout` y `CentralLayout`. **Regla de Aislamiento:** Estos layouts NO comparten estado global; todo estado compartido debe venir de props globales o stores con namespace por contexto.
+- [ ] Inicializar y configurar `shadcn/ui`. Versionar `components.json` mediante PR dedicado.
+- [ ] **Política Estricta de shadcn/ui:** shadcn genera código, no es una dependencia.
+  - Solo se permite el registry default. **Enforcement:** Check en CI que falla si `components.json` incluye registries de terceros o claves no aprobadas.
+  - Fijar carpeta estándar (`resources/js/components/ui`).
+  - Fallback no-AI: La instalación CLI estándar (`npx shadcn@latest add ...`) es la fuente de verdad.
+  - Implementar lint: Prohibido editar primitives sin pasar por un wrapper interno.
 
 ## 3. Arquitectura de Rutas y Navegación (Inertia.js)
-- [ ] Configurar el resolve de páginas de Inertia en `resources/js/app.tsx`.
-  - **Doctrina de Splitting:** Bundle único por defecto. Habilitar *code splitting* solo de forma *opt-in* cuando el bundle supere un presupuesto de tamaño X o el volumen de páginas lo exija.
-- [ ] Implementar el sistema de layouts persistentes en Inertia.
+- [ ] Configurar resolve de páginas en Inertia (`resources/js/app.tsx`).
+  - **Doctrina de Splitting:** Bundle único por defecto.
+  - **Presupuesto de Bundle:** El JS inicial ≤ 300KB (gzip). **Método:** CI ejecuta build de producción, lee el entry JS del manifest y calcula su gzip exacto con `zlib` de Node. Falla si lo supera. Si el límite se rompe por deps base justificados, ajustar budget con PR.
+- [ ] Implementar sistema de layouts persistentes separados (`TenantLayout` y `CentralLayout` sin estado global compartido).
 - [ ] Configurar `HandleInertiaRequests`.
-  - **Presupuesto de Shared Props:** Definir tamaño máximo permitido.
-  - Obligar a que datos grandes (traducciones, diccionarios) sean pasados con *lazy evaluation* (closures) o servidos por un endpoint cacheado y tenant-aware para evitar fugas de memoria y bloat en el payload.
-- [ ] Implementar indicadores de progreso de navegación.
+  - **Presupuesto de Payload (Shared Props):** ≤ 15KB decodificado. **Método:** Un test debe pegarle a rutas reales (ej. `/tenant/dashboard`) y medir el tamaño del *page object* final de Inertia en la respuesta HTTP, no directamente desde la función `share()`.
+  - *Data pesada:* Usar Inertia v2 **Deferred Props** o endpoints cacheados.
 
 ## 4. Internacionalización (i18n)
-- [ ] **Source of Truth:** Laravel es la única fuente de la verdad para el locale. El frontend consume estrictamente del mismo set.
+- [ ] **Source of Truth:** Laravel es la única fuente. El frontend consume exclusivamente archivos `lang/*.json` (JSON translations exportados).
 - [ ] Integrar `react-i18next`.
-- [ ] Definir cadena de precedencia estricta para el idioma: `?lang=` > `cookie` > `perfil usuario` > `default app`.
-- [ ] Sincronizar traducciones al frontend asegurando no saturar las props globales de Inertia (usar closures u obtener asíncronamente vía endpoint si el JSON es muy grande).
+- [ ] Precedencia de idioma: `?lang=` > `cookie` > `perfil usuario` > `default app`.
+  - **Enforcement:** Validar el parámetro `?lang=` contra una estricta *allowlist* de locales para evitar inyecciones e invalidaciones del frontend.
+- [ ] Sincronizar diccionarios masivos vía Deferred Props (v2) para no asfixiar el payload base.
 
 ## 5. Pruebas End-to-End (E2E) y Navegación
-- [ ] **Estándar E2E Único:** Configurar **Playwright** como única herramienta E2E (JS-first, sólido para flujos SPA).
-- [ ] Definir el setup de Playwright para CI, incluyendo servidor de pruebas, seeders, y resolución de hosts (`tenant` vs `central`).
-- [ ] Escribir tests E2E para flujos básicos de navegación asíncrona.
-- [ ] **Test E2E de Persistencia de Layout:** Validar estado observable real (ej. abrir sidebar, navegar, y verificar que sigue abierto; el DoD no debe dar un falso positivo si la vista se remonta).
-- [ ] **Test E2E de i18n:** Cambiar idioma, navegar por 3 páginas distintas, refrescar el navegador (F5), y verificar que la persistencia del locale se mantiene.
+- [ ] **Estándar E2E Único:** Configurar Playwright (JS-first).
+- [ ] **Multihost & DB Strategy:**
+  - Configurar `projects` separados en Playwright para Central y Tenant.
+  - Configurar `webServer` nativo de Playwright (con `url`, `port`, `timeout` explícitos y `reuseExistingServer: !process.env.CI`), evitando flakiness por herramientas de wait externas.
+  - **Aislamiento DB y Paralelismo:** Ejecutar `artisan migrate:fresh --seed` en CI. Limitar a `workers: 1` por defecto. Si luego se habilita paralelismo, es obligatorio provisionar DB por worker.
+- [ ] Test E2E de Persistencia de Layout: Validar estado observable real (ej. abrir sidebar).
+- [ ] Test E2E de i18n: Navegar y refrescar validando persistencia del locale.
 
 ## Criterios de Aceptación (DoD)
-- CI verifica explícitamente el uso de React 19 (`npm ls react`).
-- Política de "Bundle único por defecto" aplicada en Vite/Inertia.
-- Los componentes de `shadcn/ui` están instalados en el directorio aislado sin ediciones directas informales.
-- El middleware de Inertia (`HandleInertiaRequests`) no excede un payload base predefinido (testeado/validado de que no hay leak de data gigante en cada request).
-- La resolución de idiomas sigue la cadena de precedencia y las traducciones son coherentes entre Backend y Frontend.
-- Los tests en Playwright (incluyendo persistencia de layout e i18n cross-navigation) pasan en CI.
+- CI ejecuta `npm ci` con `engine-strict=true` y falla si hay `yarn.lock`/`pnpm-lock.yaml`.
+- CI falla si `npm ls react react-dom` detecta discrepancias de versión o duplicados.
+- CI valida que `components.json` solo apunta al registry default.
+- Test de build verifica bundle JS entry ≤ 300KB (gzip vía `zlib`).
+- Test de runtime en request real verifica que payload base de Inertia es ≤ 15KB.
+- Traducciones cargan estrictamente desde JSON y el locale de query string tiene un allowlist.
+- Tests E2E en Playwright utilizan webServer nativo y 1 worker (o DB por worker) garantizando determinismo.
