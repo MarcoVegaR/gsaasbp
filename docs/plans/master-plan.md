@@ -27,7 +27,7 @@ Estamos construyendo una **fundación de infraestructura SaaS** diseñada para a
 - **Multi-tenancy:** `stancl/tenancy` v3.9+ (Híbrido)
 - **RBAC:** `spatie/laravel-permission` (Modo *Teams* con `team_id` = `tenant_id`)
 - **Auditoría:** `spatie/laravel-activitylog` (Extendido con `tenant_id` y particionado)
-- **Observabilidad:** Laravel Nightwatch + Context API nativa (Laravel 11+)
+- **Observabilidad:** Laravel Nightwatch + Context API nativa (Laravel 12+)
 
 ### Capa Frontend (Tenant & Central)
 - **Core:** React 19 + Inertia.js v2 + TypeScript (Strict)
