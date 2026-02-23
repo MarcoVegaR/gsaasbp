@@ -19,6 +19,8 @@ export default defineConfig({
         tailwindcss(),
         wayfinder({
             formVariants: true,
+            command:
+                'CENTRAL_DOMAINS=localhost php artisan wayfinder:generate --with-form && node scripts/normalize-wayfinder-urls.mjs',
         }),
     ],
     esbuild: {

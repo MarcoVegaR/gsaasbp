@@ -28,6 +28,9 @@
     - permiso explícito de superadmin
     - `try/finally` que restaure tenant + cache + registrar
     - logging/auditoría del bypass
+- **Cookie Isolation (Tenant Boundary)**:
+  - Todo estado basado en cookies (ej. `locale` / i18n, preferencias) en un contexto tenant debe ser ESTRICTAMENTE `host-only`.
+  - PROHIBIDO setear el atributo `Domain=` explícitamente en las cookies de inquilinos para evitar filtraciones (cross-tenant leaks) a través de subdominios compartidos.
 
 ---
 

@@ -1,15 +1,18 @@
 <?php
 
-use Illuminate\Support\Str;
-
 const INERTIA_PAYLOAD_BUDGET_BYTES = 15 * 1024;
 
 function containsKeyRecursive(array $data, string $needle): bool
 {
     foreach ($data as $k => $v) {
-        if ($k === $needle) return true;
-        if (is_array($v) && containsKeyRecursive($v, $needle)) return true;
+        if ($k === $needle) {
+            return true;
+        }
+        if (is_array($v) && containsKeyRecursive($v, $needle)) {
+            return true;
+        }
     }
+
     return false;
 }
 
@@ -27,6 +30,7 @@ function assertInertiaPayloadContract($response, array $forbiddenKeys = ['transl
     // this test to fail just because the route doesn't exist yet.
     if ($response->status() !== 200) {
         test()->markTestSkipped("Route returned {$response->status()}, skipping payload assertion.");
+
         return;
     }
 
@@ -46,7 +50,7 @@ function assertInertiaPayloadContract($response, array $forbiddenKeys = ['transl
 
     // Contrato: coreDictionary presente
     // Note: We might need to relax this if the coreDictionary isn't wired up yet.
-    if (!isset($page['props']['coreDictionary'])) {
+    if (! isset($page['props']['coreDictionary'])) {
         // Warning or skip for now if not implemented.
         // expect($page['props'])->toHaveKey('coreDictionary');
     }
@@ -71,7 +75,7 @@ test('inertia payload budget y protocolo en 3 rutas canónicas', function () {
     $resp = inertiaJsonGet($centralHost, '/');
     assertInertiaPayloadContract($resp);
 
-    $tenantHost = 'tenant.' . $centralHost;
+    $tenantHost = 'tenant.'.$centralHost;
 
     // Tenant routes (ajusta si requieren auth)
     $resp = inertiaJsonGet($tenantHost, '/tenant/dashboard');
