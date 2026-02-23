@@ -1,0 +1,13 @@
+{
+    "core.app.name": "Laravel",
+    "core.nav.dashboard": "Panel",
+    "core.nav.settings": "Configuracion",
+    "core.action.save": "Guardar",
+    "core.action.cancel": "Cancelar",
+    "page.home.title": "Bienvenido",
+    "page.home.cta.get_started": "Comencemos",
+    "page.tenant.dashboard.title": "Panel del tenant",
+    "page.tenant.settings.title": "Configuracion del tenant",
+    "page.login.title": "Iniciar sesion",
+    "page.register.title": "Registro"
+}

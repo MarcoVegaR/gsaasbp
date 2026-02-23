@@ -77,3 +77,35 @@
 ## 5. Auditoría (Forensics)
 - Consultas sobre `activity_log` solo vía repositorio forense.
 - En despliegues de PostgreSQL (ver Master-Plan), deben incluir rango explícito `created_at` para soporte de particionado/pruning.
+
+---
+
+## 6. Operación Post-Fase 1 (Reglas de Estabilidad)
+- **Orden de Middleware (No Regresión):**
+  - `InitializeTenancyByDomain` y `SetTenantTeamContext` deben ejecutarse antes de `SubstituteBindings`.
+  - Cualquier ajuste en `bootstrap/app.php` debe preservar esta prioridad explícita.
+- **Rutas Centrales Multidominio:**
+  - Si existen múltiples `central_domains`, mantener nombres canónicos en el dominio principal y prefijar aliases para dominios adicionales (evita colisiones de export en Wayfinder).
+- **Wayfinder en Local (multihost):**
+  - En desarrollo con `localhost` + `127.0.0.1`, evitar URLs absolutas de host en artifacts generados (`resources/js/routes`, `resources/js/actions`).
+  - Mantener normalización post-generación con `scripts/normalize-wayfinder-urls.mjs`.
+
+---
+
+## 7. Operación Post-Fase 2 (UI Base & i18n)
+- **Bootstrap i18n (Fail-Fast obligatorio):**
+  - `coreDictionary` DEBE viajar en shared props base en TODA navegación Inertia.
+  - Frontend (CSR/SSR) DEBE impedir mount si `coreDictionary` falta o está vacío y renderizar pantalla de error explícita.
+- **Diccionario por página (Deferred obligatorio):**
+  - `pageDictionary` DEBE resolverse con Deferred Props agrupado (`group: 'i18n'`).
+  - La hidratación debe vivir en bridge dedicado (`I18nPageDictionaryBridge`) integrado en layouts persistentes.
+- **Contrato E2E mínimo (no regresión):**
+  - Persistencia observable de layout (`sidebar_state`) tras navegación + reload.
+  - Aislamiento de cookie `locale` entre central/tenant (host-only, sin `Domain=`, `Path=/`, `SameSite=Lax`).
+- **Comandos de certificación Fase 2:**
+  - `php artisan test tests/Feature/InertiaPayloadBudgetTest.php tests/Feature/I18nLocaleCookieContractTest.php`
+  - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
+  - `node scripts/ci/00_guardrails.mjs`
+  - `node scripts/ci/10_check_react_tree.mjs`
+  - `node scripts/ci/20_check_shadcn_components_json.mjs`
+  - `VITE_ENTRY_KEY=resources/js/app.tsx node scripts/ci/30_check_vite_initial_js_budget.mjs`

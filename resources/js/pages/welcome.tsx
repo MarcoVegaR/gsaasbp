@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { I18nPageDictionaryBridge } from '@/i18n/page-dictionary-bridge';
 import { dashboard, login, register } from '@/routes';
 
 export default function Welcome({
@@ -10,6 +11,7 @@ export default function Welcome({
 
     return (
         <>
+            <I18nPageDictionaryBridge />
             <Head title="Welcome">
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link

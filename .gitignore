@@ -9,6 +9,8 @@
 /resources/js/actions
 /resources/js/routes
 /resources/js/wayfinder
+/playwright-report
+/test-results
 /vendor
 .DS_Store
 .env

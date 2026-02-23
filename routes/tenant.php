@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
@@ -25,5 +26,15 @@ Route::middleware([
 ])->group(function () {
     Route::get('/', function () {
         return 'This is your multi-tenant application. The id of the current tenant is '.tenant('id');
+    });
+
+    Route::middleware(['auth', 'verified'])->group(function () {
+        Route::get('/tenant/dashboard', function () {
+            return Inertia::render('tenant/dashboard');
+        })->name('tenant.dashboard');
+
+        Route::get('/tenant/settings', function () {
+            return Inertia::render('tenant/settings');
+        })->name('tenant.settings');
     });
 });

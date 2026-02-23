@@ -1,0 +1,13 @@
+{
+    "core.app.name": "Laravel",
+    "core.nav.dashboard": "Dashboard",
+    "core.nav.settings": "Settings",
+    "core.action.save": "Save",
+    "core.action.cancel": "Cancel",
+    "page.home.title": "Welcome",
+    "page.home.cta.get_started": "Let's get started",
+    "page.tenant.dashboard.title": "Tenant dashboard",
+    "page.tenant.settings.title": "Tenant settings",
+    "page.login.title": "Log in",
+    "page.register.title": "Register"
+}

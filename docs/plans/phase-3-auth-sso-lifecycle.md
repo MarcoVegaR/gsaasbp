@@ -4,62 +4,73 @@ description: Plan de ejecución detallado para la Fase 3 (Auth, SSO Transacciona
 
 # Fase 3 — Autenticación, SSO Transaccional & Ciclo de Vida (Plan de Ejecución)
 
-**Objetivo principal:** Implementar el sistema de identidad global (IdP Central), el inicio de sesión unificado y el mecanismo de Single Sign-On (SSO) transaccional hacia los tenants. Garantizar seguridad *zero-trust* mediante cookies `__Host-`, JWS *assertions* asíncronas con consumo atómico, prevención absoluta de BOLA en Claims, y validaciones extremas de parsing de callbacks.
+**Objetivo principal:** Implementar el sistema de identidad global (IdP Central), el inicio de sesión unificado y el mecanismo de Single Sign-On (SSO) transaccional hacia los tenants. Garantizar seguridad *zero-trust* mediante cookies `__Host-`, JWS *assertions* asíncronas con consumo atómico, prevención absoluta de BOLA/BOPLA y *scraping* en Claims, y validaciones extremas de parsing y *clickjacking*.
 
 ## 1. Gestión de Identidad Centralizada (IdP Global)
-- [ ] **Única Fuente de Verdad:** El modelo `User` y sus credenciales (passwords, 2FA) residen **exclusivamente** en la BD Central.
-- [ ] **User Claims Service (Anti-BOLA Extremo y Anti-Cache Poisoning):**
-  - Servicio central de solo lectura para exponer PII (email, nombre) a los tenants sin duplicar columnas.
-  - **Cierre Quirúrgico Anti-BOLA:** El `tenant_id` **NO DEBE** ser un parámetro controlable (input) en el request. Debe derivarse exclusivamente del canal de autenticación *service-to-service* (ej. claim del token S2S o certificado mTLS).
-  - **Caché Estricta y Aislada:** Las respuestas se almacenan **solo en memoria** (Redis configurado explícitamente sin RDB/AOF). La llave del caché debe ser estructurada rígidamente como `aud:sub` (`tenant_id:user_id`). **Prohibido** compartir pools de caché entre tenants sin prefijos fuertes. Un pico de "cache miss" debe tratarse como un evento auditable (señal de scraping).
+- [ ] **Única Fuente de Verdad:** El modelo `User` y sus credenciales residen **exclusivamente** en la BD Central.
+- [ ] **User Claims Service (Anti-BOLA, BOPLA y Anti-Scraping):**
+  - **Autorización por Objeto (Cierre Anti-BOLA):** El `tenant_id` **NO DEBE** ser un parámetro controlable. Debe derivarse del credencial *service-to-service* (S2S). Cada consulta valida activamente `(caller_tenant_id, target_user_id) -> active membership`.
+  - **Data Minimization (Anti-BOPLA y DTO Estricto):** Contrato de Claims mínimo. **Prohibido usar `->toArray()`**. Serialización exclusiva mediante un DTO/Transformer con *allowlist* dura. El caché solo almacena este DTO permitido. Cualquier campo nuevo requiere *bump* de versión y test de *snapshot*.
+  - **Anti-Scraping Estricto ("Shape Constraints"):** Endpoints operan solo por `user_id` exacto o búsqueda severamente restringida. No existe endpoint "listar todos los claims". Rate limit por minuto y **cuotas largas (diaria/semanal)** por tenant y por caller S2S. Alarmas por patrones anómalos: alta tasa sostenida de *cache hits* (scraping "lento") y picos de *cache misses*.
+  - **Caché Estricta y Aislada:** Respuestas **solo en memoria**. Llave: `aud:sub` (`tenant_id:user_id`). **Prohibido** compartir pools. Si Redis obliga a persistencia, prohibido almacenar PII.
 - [ ] **Shadow Table (`tenant_users`) y Revalidación de Estado:**
-  - Crear la tabla `tenant_users` en los tenants. Solo debe contener `user_id` y `timestamps` (cero PII).
-  - El mecanismo de `UPSERT` en el primer acceso hidrata la relación.
-  - **Revalidación Activa:** El SSO debe revalidar el estado del usuario (`is_active`, baneos) y membresías en la BD Central **en el momento exacto del salto**, no confiar ciegamente en la tabla *shadow*.
+  - Crear `tenant_users` en los tenants (cero PII, `UPSERT`).
+  - **Revalidación Activa:** El SSO revalida estado (`is_active`, baneos) y membresías en Central **en el momento exacto del salto**.
 
 ## 2. Seguridad de Sesiones y Cookies (Zero-Trust)
 - [ ] **Invariantes `__Host-` de la Cookie de Sesión:**
-  - La cookie de sesión DEBE usar el prefijo `__Host-` (ej. `__Host-session`). Esto garantiza a nivel de navegador que se cumplan las invariantes: `Secure=true`, `Path=/`, y sin atributo `Domain`. Además, se debe forzar explícitamente `HttpOnly=true` y `SameSite=Lax`.
-  - **Riesgo Operativo (Dev):** En entornos locales (dev), se debe forzar HTTPS (ej. Valet/Mkcert) para que `Secure` (y por ende `__Host-`) funcione.
-- [ ] **Prevención de SSO Initiation CSRF (Login CSRF):**
-  - La emisión del salto SSO es una acción sensible y DEBE requerir una mutación protegida (`POST`).
-  - **Validación Robusta (Micro-Cierre):** Exigir siempre token CSRF válido. Si el `Origin` o `Referer` existe, debe coincidir. Si no existe (por políticas de privacidad del cliente), aceptar el request *solo* si las cabeceras `Sec-Fetch-Site` indican `same-origin` o `same-site` (cuando estén presentes) junto al CSRF válido. **Prohibido relajar reglas si faltan cabeceras.**
+  - Prefijo `__Host-`, `Secure=true`, `Path=/`, `HttpOnly=true`, `SameSite=Lax`, sin atributo `Domain`.
+  - **Single Writer y Cookie Chaos:** La App es el único componente autorizado a emitir `Set-Cookie`. Garantizar que el proxy (Nginx/LB/CDN) NUNCA reescribe ni inyecta cookies competidoras en distintos *paths*. Validación **vía E2E a través del proxy real** inspeccionando cookies efectivas en el navegador (no solo cabeceras HTTP).
 
 ## 3. SSO Transaccional: JWS Assertion y Modos Operativos
+- [ ] **Prevención de Clickjacking y CSP en Auto-Submit:**
+  - En páginas de auto-submit (Central) y endpoints de consumo (Tenant):
+  - **CSP de "mínima superficie" con Hash/Nonce:** `Content-Security-Policy: default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action https://<tenant-host>; script-src 'sha256-<hash>'` (o `nonce`). El hash debe generarse y **validarse automáticamente en el pipeline CI** (evita regresiones a `unsafe-inline`).
+  - **Precedencia Clickjacking:** Aplicar también `X-Frame-Options: DENY`.
+- [ ] **Prevención de SSO Initiation CSRF (Login CSRF):**
+  - Salto SSO protegido por `POST`.
+  - **Validación Robusta y Defense-in-Depth:** El token CSRF siempre manda (sin heurísticas). Si `Origin` o `Referer` existe, debe coincidir. Si no, aceptar *solo* si `Sec-Fetch-Site` indica `same-origin`/`same-site` junto al CSRF. Adicionalmente, si están presentes, validar `Sec-Fetch-Mode: navigate` y `Sec-Fetch-Dest: document` como contexto.
 - [ ] **Modos de Transmisión del SSO (Back-Channel vs Front-Channel):**
-  - El nombre técnico del modelo es **"JWS Assertion + jti anti-replay"**. (No es Proof-of-Possession puro sin DPoP/mTLS en cliente).
-  - **Back-channel (SSO_MODE=backchannel):** El IdP emite un `code` opaco de un solo uso. **El `code` NUNCA viaja por URL (Query String)**; se entrega mediante un *POST auto-submit* al Tenant. El Tenant redime este `code` directamente contra Central (vía *server-to-service auth*, mTLS o JWT client assertion) para obtener el JWT final.
-    - **Bind y State Obligatorio:** El `code` se guarda en Central (`code_hash -> {tenant_id, user_id, issued_at, nonce, redirect_path, state}`) con TTL ultracorto. El `state` previene ataques mix-up.
-  - **Front-channel (Fallback):** Enviar el JWT mediante *POST auto-submit*. Inyectar `Referrer-Policy: no-referrer` y `Cache-Control: no-store`. **Prohibido** pasar tokens o codes en la Query String.
-- [ ] **Validación Estricta y Ordenada del JWT:**
-  - **Algorithm Pinning (No negociable):** Fijar explícitamente el algoritmo (ej. `RS256`). Rechazar estruendosamente `alg=none` o confusión `HS/RS` *antes* de validar la firma.
-  - **Orden de Validación (Micro-Cierre):** El Tenant DEBE validar localmente el algoritmo, firma, `iss`, `aud`, `exp`, `nbf` e `iat` ANTES de leer el payload confiable o tocar Redis.
-- [ ] **Consumo Atómico (Anti-Race Conditions y Oráculos):**
-  - Solo tras la validación local, el Tenant ejecuta `GETDEL(jti)` en Redis para anti-replay.
-  - Si Redis falla, el proceso hace **fail closed** (Circuit Breaker con UX de reintento en Central).
-  - **Anti-Oráculo:** Devolver respuestas de fallo genéricas (ej. 403 "Invalid SSO Assertion"). No revelar si falló por firma, algoritmo, caducidad o re-uso. Forzar `Session::regenerate()` tras consumo exitoso.
+  - **Back-channel (SSO_MODE=backchannel):** `code` opaco que viaja mediante *POST auto-submit* al Tenant (NUNCA por URL).
+    - **No Request-Body Logging:** Prohibido el logging del *body* en Central, Tenant, Nginx, LB o APM.
+    - **Bind y State Obligatorio:** `tenant_id:code_hash -> {tenant_id, user_id, nonce, redirect_path, state}`.
+    - **Redeem Binding:** S2S redeem impone `tenant_id(caller) == tenant_id(code)`. Falla genérico si no coincide.
+  - **Front-channel (Fallback):** JWT por *POST auto-submit*. Inyectar `Referrer-Policy: no-referrer` y `Cache-Control: no-store`.
+- [ ] **Validación Estricta y Key Management (JWKS/kid Abuse):**
+  - **Algorithm Pinning:** Fijar algoritmo (ej. `RS256`).
+  - **Cierre de `kid` (No I/O):** El `kid` DEBE validar contra una *allowlist* en memoria o JWKS cacheado local. **PROHIBIDO usar `kid` para indexar el *filesystem*, *DB* o *fetch remoto/URL***. Fallo genérico para `kid` desconocido con *negative caching*.
+  - **Bloqueo de Features Peligrosas JWT:** Rechazar terminantemente cabeceras dinámicas (`jku`, `x5u`, `jwk`) y rechazar/limitar estrictamente `crit`. Validar `iss` (exacto), `aud` (exacto) y `typ` esperado.
+  - **Clock Skew:** Tolerancia máxima (ej. ±60s) para `nbf`, `iat`, `exp`. Rotación tolera la llave anterior solo en esa ventana.
+  - **Orden de Validación:** Validar cabeceras prohibidas, algoritmo, firma, `iss`, `aud`, `exp`, `nbf` e `iat` ANTES de leer payload o Redis.
+- [ ] **Consumo Atómico en Redis (Multi-nodo Operable):**
+  - Ejecutar el consumo `GETDEL(tenant_id:jti)` en un **cliente Redis de escritura separado**, configurado estructuralmente para apuntar **exclusivamente al primary node**. Forzar `Session::regenerate()`.
 
 ## 4. Normalización Extrema y Allow-list de Callbacks
-- [ ] **Resolución Segura del Destino (Parsing Differentials):**
-  - **Cierre Quirúrgico del Path:** Aceptar solo *paths relativos* obligando a que comiencen exactamente con un **único `/`**.
-  - **Prohibido explícitamente:** `//`, `\`, dobles encodings (`%252f`), o caracteres de control. Aplicar normalización alineada con WHATWG URL antes de usar el path. El host se extrae exclusivamente del registro del tenant.
-- [ ] **Canonización de Dominios (IDN / Punycode):**
-  - Canonizar dominios personalizados a ASCII (UTS #46). El storage debe ser consistente (guardar canonizado) y el **matching exacto** debe ocurrir *sobre la forma canonizada* en la base de datos (prohibidas reglas `contains` o `endsWith`).
+- [ ] **Resolución Segura del Destino (Parser Mismatch E2E):**
+  - Aceptar solo *paths relativos* comenzando con **único `/`**.
+  - **Prohibido:** `//`, `\`, dobles encodings (`%252f`).
+  - **Consistencia de Parser Unificado:** Validador, *redirect builder* y *runtime/routing* DEBEN usar exactamente la misma implementación y el mismo helper/librería (WHATWG URL, misma *base URL*) de punta a punta.
+- [ ] **Canonización de Dominios (TR46 / UTS #46):**
+  - Canonizar dominios a ASCII. Guardar canonizado y hacer el **matching exacto** sobre esa forma.
 
 ## 5. Ciclo de Vida (Lifecycle) y Auditoría Segura
 - [ ] **HSTS Preload Controlado (Gating):**
-  - Forzar el header HSTS con `includeSubDomains; preload` y `max-age` largo **solo en dominios 100% controlados (Central / Plataforma)**.
-  - Para Custom Domains de Tenants, NO usar `includeSubDomains; preload` para evitar "brickear" subdominios del cliente ajenos a la plataforma.
-- [ ] **Auditoría Estructurada y Protección DoS:**
-  - Rate-limiting estricto al endpoint `/sso/consume`.
-  - **Structured Logging (JSON):** Los logs deben ser estructurados. Truncado duro de `User-Agent` y sanitización (allowlist de charset) para evitar *Log Injection*. La retención de logs con PII debe ser definida como control de seguridad.
-- [ ] **Logout Direccional:** El cierre de sesión en un Tenant destruye solo esa sesión local.
+  - Forzar HSTS con `includeSubDomains; preload` y `max-age` largo **solo en dominios de plataforma 100% controlados** (declaración explícita de intención).
+  - Para Custom Domains de Tenants, NO usar `includeSubDomains; preload`.
+- [ ] **Auditoría Estructurada:**
+  - Rate-limiting a `/sso/consume`.
+  - **Structured Logging (JSON):** Truncado de `User-Agent` y sanitización.
 
-## Criterios de Aceptación (DoD++++)
-- [ ] **Test de JWT Algorithm Pinning:** Validar que un token con `alg=none`, algoritmo incorrecto o confusión de claves falla localmente *antes* de Redis, devolviendo una respuesta genérica.
-- [ ] **Test de Modo Backchannel sin URL:** Aserción de que, bajo `SSO_MODE=backchannel`, tanto el `code` inicial como el JWT final viajan por POST *body* (jamás en *Query String*) y que los headers anti-cache/referer están presentes.
-- [ ] **Test Redeem Anti-Mix-Up:** Un intento de redimir un `code` en Central S2S con un `state` incorrecto o desde un tenant no autorizado resulta en un 403 genérico.
-- [ ] **Test Anti-BOLA (Claims Service):** El servicio ignora el `tenant_id` del request y usa el extraído del credencial S2S. Un pico de "cache miss" dispara un evento auditable.
-- [ ] **Test de HSTS Gating:** Verificar que los *custom domains* de tenants no incluyen directivas `preload` o `includeSubDomains` agresivas que puedan romper infraestructura del cliente.
-- [ ] **Test de Invariantes de Cookie:** Validación de cookie `__Host-` con `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, y ausencia de `Domain`.
-- [ ] **Test de Hardening de Paths:** El endpoint rechaza `//dashboard`, `\dashboard`, `%2f%2f` y otros diferenciales de parsing.
+## Criterios de Aceptación (DoD++++++++++ Obligatorios)
+- [ ] **Test Claims BOPLA (Data Minimization):** Aserción de que el payload se genera vía DTO (nunca `toArray`) y cumple estrictamente el contrato versionado.
+- [ ] **Test Anti-Scraping (Claims Quotas):** Validación de alarmas y cuotas (diarias/semanales) operativas ante patrones sostenidos de *cache hits* y *misses*.
+- [ ] **Test Cookie Chaos Guard (Proxy E2E):** Prueba E2E a través del proxy real inspeccionando *cookies efectivas en el UA* para garantizar que no hay competidoras y que el *Single Writer* prevalece sin degradación de `__Host-`.
+- [ ] **Test CSP Hash CI Pipeline (Clickjacking):** Verificación forzosa en pipeline CI de que el `sha256-...` (o `nonce`) corresponde al *script* de auto-submit desplegado. Falla build ante `unsafe-inline`.
+- [ ] **No request-body logs:** Pipeline check/config scanning certificando ausencia de logging de bodies en endpoints SSO (App + Reverse Proxy + APM).
+- [ ] **Test JWKS / kid Abuse:** Payloads maliciosos en `kid` (`../../..`) y cabeceras dinámicas (`jku`, `x5u`, `jwk`, `crit` no autorizado) devuelven falla genérica sin I/O.
+- [ ] **Test JWT Algorithm Pinning & Clock Skew:** `alg=none`, HS/RS confusion fallan antes de Redis. Claims de tiempo aplican `±60s` de skew.
+- [ ] **Test Redis Primary Enforcement:** Configuración comprobable del cliente Redis de escritura apuntando estructuralmente al *primary node* con namespace `tenant_id:jti`.
+- [ ] **Test Redeem Binding (Anti-Mix-Up S2S):** Tenant A no puede redimir código de Tenant B aunque tenga *code+state* (403 genérico).
+- [ ] **Test Modo Backchannel sin URL:** `code` y JWT viajan por POST *body* con headers *anti-cache/referer*.
+- [ ] **Test Hardening de Paths (Parser Unificado):** El endpoint usa un único helper WHATWG y rechaza diferencialmente `//dashboard`, `\dashboard`, `%2f%2f`. Fuzzing diferencial.
+- [ ] **Test TR46 Storage Consistente:** Dominios IDN guardados y evaluados canonizados ASCII.

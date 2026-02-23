@@ -1,6 +1,12 @@
 <?php
 
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Cookie;
+
+uses(RefreshDatabase::class);
 
 function findCookieByName(array $cookies, string $name): ?Cookie
 {
@@ -13,30 +19,38 @@ function findCookieByName(array $cookies, string $name): ?Cookie
     return null;
 }
 
+function ensureTenantDomain(string $host): Tenant
+{
+    $tenant = Tenant::create(['id' => (string) Str::uuid()]);
+    $tenant->domains()->create(['domain' => $host]);
+
+    return $tenant;
+}
+
 test('cookie locale es host-only y tiene atributos Path/SameSite/Secure correctos', function () {
+    config(['tenancy.central_domains' => ['localhost']]);
+    config(['app.supported_locales' => ['en', 'es']]);
+
     $tenantHost = 'tenant.'.(config('tenancy.central_domains', ['localhost'])[0] ?? 'localhost');
     $cookieName = config('app.locale_cookie', 'locale');
+    ensureTenantDomain($tenantHost);
+
+    $user = User::factory()->create([
+        'email_verified_at' => now(),
+    ]);
+
+    $tenantDashboardUrl = "http://{$tenantHost}/tenant/dashboard";
 
     // HTTP (no Secure)
-    $resp = test()->withServerVariables(['HTTP_HOST' => $tenantHost])
-        ->get('/tenant/dashboard?lang=es');
+    $resp = test()->actingAs($user)->get("{$tenantDashboardUrl}?lang=es");
 
-    // Skip if the route doesn't exist yet
-    if ($resp->status() !== 200) {
-        test()->markTestSkipped("Route returned {$resp->status()}, skipping cookie assertion.");
-
-        return;
-    }
+    $resp->assertOk();
 
     $cookies = $resp->headers->getCookies();
     $cookie = findCookieByName($cookies, $cookieName);
 
-    // If the locale middleware isn't wired up yet, this will fail. We'll skip gracefully for now.
-    if (! $cookie) {
-        test()->markTestSkipped("No se encontró cookie {$cookieName}. (¿middleware de locale activo?)");
-
-        return;
-    }
+    expect($cookie)->not->toBeNull();
+    /** @var Cookie $cookie */
 
     // Host-only: Domain debe ser null y header NO debe contener "Domain="
     expect($cookie->getDomain())->toBeNull();
@@ -53,10 +67,7 @@ test('cookie locale es host-only y tiene atributos Path/SameSite/Secure correcto
     expect($cookie->isSecure())->toBeFalse();
 
     // HTTPS (Secure requerido)
-    $resp = test()->withServerVariables([
-        'HTTP_HOST' => $tenantHost,
-        'HTTPS' => 'on',
-    ])->get('/tenant/dashboard?lang=es');
+    $resp = test()->actingAs($user)->get("https://{$tenantHost}/tenant/dashboard?lang=es");
 
     $resp->assertStatus(200);
     $cookie = findCookieByName($resp->headers->getCookies(), $cookieName);
@@ -65,17 +76,22 @@ test('cookie locale es host-only y tiene atributos Path/SameSite/Secure correcto
 });
 
 test('lang inválido es rechazado y no setea cookie', function () {
+    config(['tenancy.central_domains' => ['localhost']]);
+    config(['app.supported_locales' => ['en', 'es']]);
+
     $tenantHost = 'tenant.'.(config('tenancy.central_domains', ['localhost'])[0] ?? 'localhost');
     $cookieName = config('app.locale_cookie', 'locale');
+    ensureTenantDomain($tenantHost);
 
-    $resp = test()->withServerVariables(['HTTP_HOST' => $tenantHost])
-        ->get('/tenant/dashboard?lang=__INVALID__');
+    $user = User::factory()->create([
+        'email_verified_at' => now(),
+    ]);
 
-    if ($resp->status() !== 400 && $resp->status() !== 422) {
-        test()->markTestSkipped("Route returned {$resp->status()}, skipping invalid lang assertion.");
+    $resp = test()
+        ->actingAs($user)
+        ->get("http://{$tenantHost}/tenant/dashboard?lang=__INVALID__");
 
-        return;
-    }
+    $resp->assertStatus(422);
 
     $cookie = findCookieByName($resp->headers->getCookies(), $cookieName);
     expect($cookie)->toBeNull("No debe setearse cookie {$cookieName} en lang inválido.");

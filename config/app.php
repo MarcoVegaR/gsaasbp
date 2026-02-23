@@ -80,6 +80,15 @@ return [
 
     'locale' => env('APP_LOCALE', 'en'),
 
+    'locale_default' => env('APP_LOCALE_DEFAULT', env('APP_LOCALE', 'en')),
+
+    'supported_locales' => array_values(array_filter(array_map(
+        static fn (string $locale): string => trim($locale),
+        explode(',', (string) env('APP_SUPPORTED_LOCALES', env('APP_LOCALE', 'en'))),
+    ), static fn (string $locale): bool => $locale !== '')),
+
+    'locale_cookie' => env('APP_LOCALE_COOKIE', 'locale'),
+
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),

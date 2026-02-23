@@ -30,3 +30,26 @@
 
 ## 3. Tenancy
 - Reglas específicas: `app/AGENTS.md` + Master-Plan.
+
+## 4. Cierre Fase 1 (Operativo)
+- Documentación oficial de cierre:
+  - `docs/plans/phase-1-cierre-ejecucion.md`
+  - `docs/manuals/phase-1-manual-usuario.md`
+- Dominios centrales:
+  - Local dev: `CENTRAL_DOMAINS=localhost,127.0.0.1` para evitar errores de resolución tenant al usar servidor en `127.0.0.1`.
+  - Producción: usar exclusivamente dominios reales de plataforma (no loopback IPs).
+- Wayfinder (local multihost):
+  - Evitar URLs absolutas con host en rutas/actions generadas.
+  - Mantener la normalización post-generación (`scripts/normalize-wayfinder-urls.mjs`) para prevenir errores CORS por mezcla `localhost` vs `127.0.0.1`.
+
+## 5. Cierre Fase 2 (Operativo)
+- Documentación oficial de cierre:
+  - `docs/plans/phase-2-cierre-ejecucion.md`
+  - `docs/manuals/phase-2-manual-usuario.md`
+- Certificación mínima requerida para cambios que toquen UI base/i18n:
+  - `php artisan test tests/Feature/InertiaPayloadBudgetTest.php tests/Feature/I18nLocaleCookieContractTest.php`
+  - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
+  - `node scripts/ci/00_guardrails.mjs`
+  - `node scripts/ci/10_check_react_tree.mjs`
+  - `node scripts/ci/20_check_shadcn_components_json.mjs`
+  - `VITE_ENTRY_KEY=resources/js/app.tsx node scripts/ci/30_check_vite_initial_js_budget.mjs`

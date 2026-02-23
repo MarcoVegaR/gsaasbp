@@ -141,6 +141,12 @@ Request
 | **7** | **Panel Central de Administración** | `SystemContext::execute()` protegido contra tenant-admins. |
 | **8** | **Generador de Módulos (DX)** | Stubs garantizan *Unique Compuestos*, caché aislada y bloquean explícitamente `DB::table()`. |
 
+### Estado operativo actual del roadmap
+
+- ✅ **Fase 1 cerrada** — ver `docs/plans/phase-1-cierre-ejecucion.md` y `docs/manuals/phase-1-manual-usuario.md`.
+- ✅ **Fase 2 cerrada y certificada** — ver `docs/plans/phase-2-cierre-ejecucion.md` y `docs/manuals/phase-2-manual-usuario.md`.
+- 🚧 **Fase 3 en progreso** — ver `docs/plans/phase-3-auth-sso-lifecycle.md`.
+
 ---
 
 ## 6. Contrato de Queries Forenses (activity_log)

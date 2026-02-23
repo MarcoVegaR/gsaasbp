@@ -67,12 +67,24 @@ if (typeof entry.file !== "string" || !entry.file.endsWith(".js")) {
 
 function assertImportsShape(chunk, keyName) {
   if (chunk.imports === undefined) {
-    // Contrato: queremos array (aunque sea vacío); si falta, consideramos shape cambiado
+    // Vite puede omitir imports en el entry cuando no tiene imports estáticos.
+    if (chunk.isEntry === true) {
+      return;
+    }
+    // Contrato: para chunks no-entry seguimos exigiendo imports explícito.
     fail(`manifest shape changed: falta "imports" en chunk ${keyName}.`);
   }
   if (!Array.isArray(chunk.imports)) {
     fail(`manifest shape changed: "imports" no es array en chunk ${keyName}.`);
   }
+}
+
+function getImports(chunk) {
+  if (chunk.imports === undefined) {
+    return [];
+  }
+
+  return chunk.imports;
 }
 
 assertImportsShape(entry, entryKey);
@@ -105,7 +117,7 @@ function walk(chunkKey) {
 
   assertImportsShape(chunk, chunkKey);
 
-  for (const impKey of chunk.imports) {
+  for (const impKey of getImports(chunk)) {
     walk(impKey);
   }
 

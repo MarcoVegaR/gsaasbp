@@ -1,8 +1,8 @@
-import type { Auth } from '@/types/auth';
+import type { Auth, I18nSharedProps } from '@/types';
 
 declare module '@inertiajs/core' {
     export interface InertiaConfig {
-        sharedPageProps: {
+        sharedPageProps: I18nSharedProps & {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
