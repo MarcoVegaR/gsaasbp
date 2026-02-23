@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\ApplyPlatformHsts;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
@@ -47,7 +48,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->encryptCookies(except: [
+            'appearance',
+            'sidebar_state',
+            (string) env('APP_LOCALE_COOKIE', 'locale'),
+        ]);
+        $middleware->validateCsrfTokens(except: ['sso/consume', 'sso/redeem']);
 
         $middleware->trustHosts(at: static function (): array {
             $trustedCentralDomains = array_map(
@@ -75,6 +81,7 @@ return Application::configure(basePath: dirname(__DIR__))
             SetTenantTeamContext::class,
         ], append: [
             SetLocale::class,
+            ApplyPlatformHsts::class,
             HandleInertiaRequests::class,
             HandleAppearance::class,
             AddLinkHeadersForPreloadedAssets::class,

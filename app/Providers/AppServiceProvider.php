@@ -3,10 +3,14 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Support\Sso\S2sCaller;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -27,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureAuthorization();
+        $this->configureRateLimiting();
     }
 
     /**
@@ -71,6 +76,30 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return in_array($user->email, $superadminEmails, true) ? true : null;
+        });
+    }
+
+    /**
+     * Configure cross-cutting rate limiters.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('sso-consume', static function (Request $request): Limit {
+            $tenantId = tenant()?->getTenantKey() ?? 'unknown-tenant';
+
+            return Limit::perMinute(30)->by($tenantId.'|'.$request->ip());
+        });
+
+        RateLimiter::for('sso-claims', static function (Request $request): Limit {
+            $caller = $request->attributes->get('sso_s2s_caller');
+
+            if ($caller instanceof S2sCaller) {
+                return Limit::perMinute(max(1, (int) config('sso.claims.rate_limit_per_minute', 60)))
+                    ->by($caller->tenantId.'|'.$caller->caller);
+            }
+
+            return Limit::perMinute(max(1, (int) config('sso.claims.rate_limit_per_minute', 60)))
+                ->by('unauthenticated|'.$request->ip());
         });
     }
 }

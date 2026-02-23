@@ -145,7 +145,7 @@ Request
 
 - ✅ **Fase 1 cerrada** — ver `docs/plans/phase-1-cierre-ejecucion.md` y `docs/manuals/phase-1-manual-usuario.md`.
 - ✅ **Fase 2 cerrada y certificada** — ver `docs/plans/phase-2-cierre-ejecucion.md` y `docs/manuals/phase-2-manual-usuario.md`.
-- 🚧 **Fase 3 en progreso** — ver `docs/plans/phase-3-auth-sso-lifecycle.md`.
+- ✅ **Fase 3 cerrada y certificada** — ver `docs/plans/phase-3-cierre-ejecucion.md` y `docs/manuals/phase-3-manual-usuario.md`.
 
 ---
 

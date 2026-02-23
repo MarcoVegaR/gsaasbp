@@ -53,3 +53,21 @@
   - `node scripts/ci/10_check_react_tree.mjs`
   - `node scripts/ci/20_check_shadcn_components_json.mjs`
   - `VITE_ENTRY_KEY=resources/js/app.tsx node scripts/ci/30_check_vite_initial_js_budget.mjs`
+
+## 6. Cierre Fase 3 (Operativo)
+- Documentación oficial de cierre:
+  - `docs/plans/phase-3-cierre-ejecucion.md`
+  - `docs/manuals/phase-3-manual-usuario.md`
+- Seguridad SSO obligatoria:
+  - Claims IdP solo por `user_id` + S2S caller (`tenant_id` derivado del credential, nunca del request).
+  - Backchannel por POST body (`code` opaco), prohibido transportar `code` en URL.
+  - JWT con algorithm pinning (`RS256`), allowlist `kid`, bloqueo `jku/x5u/jwk` y skew máximo ±60s.
+  - Consumo one-time con cliente Redis de escritura dedicado (`sso_write`) forzado a `primary`.
+  - Callback hardening: aceptar solo paths relativos válidos; rechazar `//`, `\\`, dobles encodings.
+  - Clickjacking hardening: CSP mínima con hash `sha256-...` + `X-Frame-Options: DENY`.
+  - No request-body logs en superficies SSO/IdP.
+- Certificación mínima requerida para cambios en Auth/SSO lifecycle:
+  - `php artisan test`
+  - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
+  - `node scripts/ci/40_check_sso_csp_contract.mjs`
+  - `node scripts/ci/50_check_sso_no_body_logs.mjs`

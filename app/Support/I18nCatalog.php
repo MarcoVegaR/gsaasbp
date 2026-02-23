@@ -95,7 +95,7 @@ final class I18nCatalog
             return;
         }
 
-        $cursor =& $target;
+        $cursor = &$target;
         $lastSegment = array_pop($segments);
 
         foreach ($segments as $segment) {
@@ -103,7 +103,7 @@ final class I18nCatalog
                 $cursor[$segment] = [];
             }
 
-            $cursor =& $cursor[$segment];
+            $cursor = &$cursor[$segment];
         }
 
         if ($lastSegment !== null) {

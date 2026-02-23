@@ -109,3 +109,33 @@
   - `node scripts/ci/10_check_react_tree.mjs`
   - `node scripts/ci/20_check_shadcn_components_json.mjs`
   - `VITE_ENTRY_KEY=resources/js/app.tsx node scripts/ci/30_check_vite_initial_js_budget.mjs`
+
+---
+
+## 8. Operación Post-Fase 3 (Auth, SSO Transaccional & Lifecycle)
+- **IdP Claims (contrato fijo):**
+  - `tenant_id` SIEMPRE derivado del caller S2S; nunca desde input del request.
+  - DTO versionado allowlist-only para claims (`version`, `tenant_id`, `user_id`, `mfa_enabled`, `email_verified`).
+  - Prohibido logging de request body en endpoints SSO/IdP.
+- **SSO Backchannel/Frontchannel:**
+  - Inicio SSO por POST protegido (CSRF + validaciones `Origin/Referer/Sec-Fetch-*`).
+  - Backchannel: `code` opaco solo en body POST (nunca por URL).
+  - Redeem binding obligatorio: `tenant_id(caller) == tenant_id(code)`.
+- **JWT Hardening obligatorio:**
+  - Algorithm pinning (`RS256`) y allowlist estricta de `kid` (sin I/O dinámico).
+  - Rechazo explícito de `jku`, `x5u`, `jwk` y `crit` no autorizado.
+  - Validar `iss`, `aud`, `typ`, `exp`, `nbf`, `iat` (skew máximo ±60s) antes de consumir token one-time.
+- **One-time consume:**
+  - `GETDEL`/Lua sobre conexión Redis de escritura dedicada (`sso_write`) y rol estructural `primary`.
+- **Callback hardening y dominios:**
+  - Aceptar únicamente paths relativos con `/` único.
+  - Rechazar `//`, `\\` y dobles encodings.
+  - Canonizar dominios con TR46/UTS46 y comparar en forma ASCII canonizada.
+- **Clickjacking/HSTS:**
+  - Auto-submit con CSP hash (`sha256-...`) + `X-Frame-Options: DENY`.
+  - HSTS con `includeSubDomains; preload` solo para dominios de plataforma confiables.
+- **Comandos de certificación Fase 3:**
+  - `php artisan test`
+  - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
+  - `node scripts/ci/40_check_sso_csp_contract.mjs`
+  - `node scripts/ci/50_check_sso_no_body_logs.mjs`
