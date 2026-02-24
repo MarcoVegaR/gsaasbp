@@ -13,6 +13,6 @@ return [
     |
     */
     'abilities' => [
-        // 'tenant.delete',
+        'platform.tenants.hard-delete',
     ],
 ];

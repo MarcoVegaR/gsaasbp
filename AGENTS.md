@@ -94,3 +94,27 @@
   - `node scripts/ci/40_check_sso_csp_contract.mjs`
   - `node scripts/ci/50_check_sso_no_body_logs.mjs`
   - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
+
+## 8. Cierre Fase 5 (Operativo)
+- Documentación oficial de cierre:
+  - `docs/plans/phase-5-cierre-ejecucion.md`
+  - `docs/manuals/phase-5-manual-usuario.md`
+- Contratos funcionales obligatorios:
+  - Backoffice global opera bajo guard `platform` con cookie de sesión `__Host-` estricta (`Secure`, `HttpOnly`, `Path=/`, `SameSite`, sin `Domain`).
+  - Abilities de plataforma se enmarcan en `platform.*` y denylist versionado en `config/superadmin_denylist.php`.
+  - Hard delete exige step-up capability atómico, single-use y scope explícito (`platform.tenants.hard-delete`).
+  - Circuit breaker de `TenantStatus` protege SSO, requests críticas y jobs; aborts se registran con telemetría low-cardinality.
+  - Impersonation usa claim `act` con `act.iss` allowlist, `act` anidado prohibido y derivación forense anti-spoofing.
+  - Colector OTel aplica allowlist/redaction/filter/transform en `resource/spans/metrics/logs`; analytics con anti-differencing (k-anonimato + buckets + cap + rounding + cache + rate-limit).
+- Certificación mínima requerida para cambios en Superadmin/Platform Lifecycle/Telemetry:
+  - `php artisan test`
+  - `php artisan test tests/Feature/Phase5/Phase5ContractsTest.php --stop-on-failure`
+  - `npm run types`
+  - `node scripts/ci/00_guardrails.mjs`
+  - `node scripts/ci/10_check_react_tree.mjs`
+  - `node scripts/ci/20_check_shadcn_components_json.mjs`
+  - `npm run build`
+  - `VITE_ENTRY_KEY=resources/js/app.tsx node scripts/ci/30_check_vite_initial_js_budget.mjs`
+  - `node scripts/ci/40_check_sso_csp_contract.mjs`
+  - `node scripts/ci/50_check_sso_no_body_logs.mjs`
+  - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`

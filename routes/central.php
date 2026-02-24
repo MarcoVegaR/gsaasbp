@@ -36,4 +36,6 @@ Route::middleware([ResolveS2sCaller::class])
     ->post('sso/redeem', RedeemBackchannelCodeController::class)
     ->name('sso.redeem');
 
+require __DIR__.'/admin.php';
+
 require __DIR__.'/settings.php';

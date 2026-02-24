@@ -1,13 +1,18 @@
 <?php
 
 use App\Http\Middleware\ApplyPlatformHsts;
+use App\Http\Middleware\EnsureActiveTenantStatus;
 use App\Http\Middleware\EnsureFreshProfileProjection;
+use App\Http\Middleware\EnsurePlatformStepUpCapability;
 use App\Http\Middleware\EnsureRbacStepUp;
 use App\Http\Middleware\EnsureTenantEntitlement;
+use App\Http\Middleware\ForcePlatformGuard;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RejectImpersonatedMutations;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantTeamContext;
+use App\Http\Middleware\UsePlatformSessionSettings;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -66,6 +71,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'phase4.profile.fresh' => EnsureFreshProfileProjection::class,
             'phase4.rbac.step-up' => EnsureRbacStepUp::class,
             'phase4.entitlement' => EnsureTenantEntitlement::class,
+            'phase5.platform.cookie' => UsePlatformSessionSettings::class,
+            'phase5.platform.guard' => ForcePlatformGuard::class,
+            'phase5.tenant.active' => EnsureActiveTenantStatus::class,
+            'phase5.impersonation.block-mutations' => RejectImpersonatedMutations::class,
+            'phase5.step-up' => EnsurePlatformStepUpCapability::class,
         ]);
 
         $middleware->trustHosts(at: static function (): array {
@@ -91,6 +101,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(SubstituteBindings::class, SetTenantTeamContext::class);
 
         $middleware->web(prepend: [
+            UsePlatformSessionSettings::class,
             SetTenantTeamContext::class,
         ], append: [
             SetLocale::class,

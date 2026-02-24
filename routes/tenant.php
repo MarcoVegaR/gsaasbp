@@ -33,14 +33,15 @@ Route::middleware([
     PreventAccessFromCentralDomains::class,
 ])->group(function () {
     Route::post('/sso/consume', ConsumeSsoController::class)
-        ->middleware('throttle:sso-consume')
+        ->middleware(['phase5.tenant.active', 'throttle:sso-consume'])
         ->name('tenant.sso.consume');
 
     Route::post('/tenant/events/ingest', TenantEventIngestController::class)
-        ->middleware(ResolveS2sCaller::class)
+        ->middleware([ResolveS2sCaller::class, 'phase5.tenant.active'])
         ->name('tenant.phase4.events.ingest');
 
     Route::post('/tenant/billing/webhooks/{provider}', BillingWebhookController::class)
+        ->middleware('phase5.tenant.active')
         ->name('tenant.phase4.billing.webhook');
 
     Route::get('/', function () {
@@ -56,7 +57,7 @@ Route::middleware([
             return Inertia::render('tenant/settings');
         })->name('tenant.settings');
 
-        Route::middleware(['phase4.profile.fresh'])->group(function (): void {
+        Route::middleware(['phase5.tenant.active', 'phase4.profile.fresh'])->group(function (): void {
             Route::post('/tenant/invites', [InviteController::class, 'store'])
                 ->middleware('phase4.entitlement:tenant.invites')
                 ->name('tenant.phase4.invites.store');

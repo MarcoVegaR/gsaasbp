@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Sso\Central;
 
+use App\Exceptions\TenantStatusBlockedException;
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
 use App\Support\Sso\DomainCanonicalizer;
@@ -14,6 +15,7 @@ use App\Support\Sso\SsoInitiationRequestGuard;
 use App\Support\Sso\SsoJwtAssertionService;
 use App\Support\Sso\SsoMembershipService;
 use App\Support\Sso\SsoOneTimeTokenStore;
+use App\Support\Phase5\TenantStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
@@ -27,6 +29,7 @@ class StartSsoController extends Controller
         SsoCodeStore $codeStore,
         SsoOneTimeTokenStore $oneTimeTokenStore,
         SsoJwtAssertionService $jwtAssertionService,
+        TenantStatusService $tenantStatus,
         SsoAutoSubmitPage $autoSubmitPage,
     ): Response {
         $requestGuard->assert($request);
@@ -47,6 +50,12 @@ class StartSsoController extends Controller
         $user = $request->user();
 
         abort_if($user === null, 401, 'Unauthorized.');
+
+        try {
+            $tenantStatus->ensureActive($tenantId);
+        } catch (TenantStatusBlockedException $exception) {
+            abort(423, 'TENANT_STATUS_BLOCKED:'.$exception->status());
+        }
 
         $membershipService->assertActiveMembership($tenantId, (int) $user->getAuthIdentifier());
 

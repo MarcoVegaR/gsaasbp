@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Sso;
 
+use App\Support\Phase5\Impersonation\ImpersonationClaimValidator;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -11,6 +12,7 @@ final class SsoJwtAssertionService
 {
     public function __construct(
         private readonly SsoOneTimeTokenStore $tokenStore,
+        private readonly ?ImpersonationClaimValidator $impersonationValidator = null,
     ) {}
 
     /**
@@ -190,6 +192,13 @@ final class SsoJwtAssertionService
         }
 
         if (! is_string($typ) || $typ !== (string) config('sso.jwt.typ', 'JWT')) {
+            $this->fail();
+        }
+
+        try {
+            ($this->impersonationValidator ?? app(ImpersonationClaimValidator::class))
+                ->validate($payload, (string) config('sso.audience'));
+        } catch (InvalidArgumentException) {
             $this->fail();
         }
 

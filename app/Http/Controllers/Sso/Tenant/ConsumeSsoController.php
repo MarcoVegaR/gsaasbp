@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Sso\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Support\Phase5\Impersonation\ForensicImpersonationContextResolver;
 use App\Support\Sso\RedirectPathGuard;
 use App\Support\Sso\SsoAuditLogger;
 use App\Support\Sso\SsoCodeStore;
@@ -24,6 +25,7 @@ class ConsumeSsoController extends Controller
         SsoJwtAssertionService $jwtAssertionService,
         SsoMembershipService $membershipService,
         SsoAuditLogger $auditLogger,
+        ForensicImpersonationContextResolver $forensicResolver,
     ): RedirectResponse {
         $tenantId = (string) tenant()?->getTenantKey();
 
@@ -31,6 +33,7 @@ class ConsumeSsoController extends Controller
 
         $mode = 'unknown';
         $userId = null;
+        $forensicContext = [];
 
         try {
             $state = (string) $request->input('state', '');
@@ -52,6 +55,7 @@ class ConsumeSsoController extends Controller
 
                 $userId = (int) ($consumed['user_id'] ?? 0);
                 $redirectPath = RedirectPathGuard::normalize((string) ($consumed['redirect_path'] ?? '/'));
+                $request->session()->forget('phase5.impersonation');
             } elseif ($request->filled('assertion')) {
                 $mode = 'frontchannel';
 
@@ -70,6 +74,13 @@ class ConsumeSsoController extends Controller
 
                 $userId = (int) ($assertionPayload['user_id'] ?? 0);
                 $redirectPath = RedirectPathGuard::normalize((string) ($assertionPayload['redirect_path'] ?? '/'));
+
+                if (array_key_exists('act', $assertionPayload)) {
+                    $forensicContext = $forensicResolver->resolve($assertionPayload, (array) $request->all());
+                    $request->session()->put('phase5.impersonation', $forensicContext);
+                } else {
+                    $request->session()->forget('phase5.impersonation');
+                }
             } else {
                 throw new AuthorizationException('Forbidden.');
             }
@@ -86,11 +97,11 @@ class ConsumeSsoController extends Controller
 
             $request->session()->regenerate();
             $membershipService->touchLastSsoAt($membership);
-            $auditLogger->logConsume($request, $tenantId, $userId, $mode, 'ok');
+            $auditLogger->logConsume($request, $tenantId, $userId, $mode, 'ok', $forensicContext);
 
             return redirect()->to($redirectPath);
         } catch (AuthorizationException|InvalidArgumentException) {
-            $auditLogger->logConsume($request, $tenantId, $userId, $mode, 'denied');
+            $auditLogger->logConsume($request, $tenantId, $userId, $mode, 'denied', $forensicContext);
             abort(403, 'Forbidden.');
         }
     }

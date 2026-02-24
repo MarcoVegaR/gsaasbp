@@ -13,6 +13,7 @@ class Tenant extends BaseTenant
 
     protected $casts = [
         'data' => 'array',
+        'status_changed_at' => 'datetime',
     ];
 
     public static function getCustomColumns(): array
@@ -20,6 +21,8 @@ class Tenant extends BaseTenant
         return [
             'id',
             'db_connection',
+            'status',
+            'status_changed_at',
         ];
     }
 }

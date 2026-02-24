@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Exceptions\TenantStatusBlockedException;
 use App\Support\Phase4\Audit\AuditLogger;
 use App\Support\Phase4\Audit\ForensicAuditRepository;
 use App\Support\Phase4\Entitlements\EntitlementService;
+use App\Support\Phase5\JobAbortTelemetry;
+use App\Support\Phase5\TenantStatusService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -31,7 +34,17 @@ class ExportTenantAuditLogJob implements ShouldQueue
         ForensicAuditRepository $repository,
         EntitlementService $entitlements,
         AuditLogger $auditLogger,
+        TenantStatusService $tenantStatus,
+        JobAbortTelemetry $jobAbortTelemetry,
     ): void {
+        try {
+            $tenantStatus->ensureActive($this->tenantId);
+        } catch (TenantStatusBlockedException $exception) {
+            $jobAbortTelemetry->recordTenantStatusAbort($exception->status());
+
+            return;
+        }
+
         $entitlements->ensure($this->tenantId, 'tenant.audit.export');
 
         $from = CarbonImmutable::parse($this->fromIso8601);
@@ -44,6 +57,14 @@ class ExportTenantAuditLogJob implements ShouldQueue
             filters: $this->filters,
             limit: 5000,
         );
+
+        try {
+            $tenantStatus->ensureActive($this->tenantId);
+        } catch (TenantStatusBlockedException $exception) {
+            $jobAbortTelemetry->recordTenantStatusAbort($exception->status());
+
+            return;
+        }
 
         $disk = (string) config('phase4.audit.export_disk', 'local');
         $path = sprintf('phase4/audit/%s-%s.json', $this->tenantId, now()->format('YmdHis'));
