@@ -71,3 +71,26 @@
   - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
   - `node scripts/ci/40_check_sso_csp_contract.mjs`
   - `node scripts/ci/50_check_sso_no_body_logs.mjs`
+
+## 7. Cierre Fase 4 (Operativo)
+- Documentación oficial de cierre:
+  - `docs/plans/phase-4-cierre-ejecucion.md`
+  - `docs/manuals/phase-4-manual-usuario.md`
+- Contratos funcionales obligatorios:
+  - `POST /invites/{inviteToken}/accept` se opera en dominio central autenticado.
+  - Superficies sensibles tenant (`invites`, `rbac`, `audit`, `billing`) protegidas por stale guard + entitlement fail-closed.
+  - Mutaciones RBAC obligan step-up (`423 STEP_UP_REQUIRED` si no hay re-auth reciente).
+  - Auditoría forense exige rango temporal sargable (`created_at >= :from AND created_at < :to`).
+  - Billing exige firma webhook válida, idempotencia por `event_id` y alerta de divergencia por `outcome_hash`.
+- Certificación mínima requerida para cambios en Settings/RBAC/Audit/Billing:
+  - `php artisan test`
+  - `php artisan test tests/Feature/Phase4/Phase4ContractsTest.php --stop-on-failure`
+  - `npm run types`
+  - `node scripts/ci/00_guardrails.mjs`
+  - `node scripts/ci/10_check_react_tree.mjs`
+  - `node scripts/ci/20_check_shadcn_components_json.mjs`
+  - `npm run build`
+  - `VITE_ENTRY_KEY=resources/js/app.tsx node scripts/ci/30_check_vite_initial_js_budget.mjs`
+  - `node scripts/ci/40_check_sso_csp_contract.mjs`
+  - `node scripts/ci/50_check_sso_no_body_logs.mjs`
+  - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`

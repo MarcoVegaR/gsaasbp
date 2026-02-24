@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Tenant;
 use App\Models\User;
+use App\Policies\TenantPolicy;
 use App\Support\Sso\S2sCaller;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -61,6 +63,8 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureAuthorization(): void
     {
+        Gate::policy(Tenant::class, TenantPolicy::class);
+
         $superadminEmails = array_values(array_filter(array_map(
             'trim',
             explode(',', (string) env('SUPERADMIN_EMAILS', '')),

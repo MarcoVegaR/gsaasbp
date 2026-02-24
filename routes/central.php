@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Phase4\InviteController;
 use App\Http\Controllers\Sso\Central\ClaimsController;
 use App\Http\Controllers\Sso\Central\RedeemBackchannelCodeController;
 use App\Http\Controllers\Sso\Central\StartSsoController;
@@ -21,6 +22,10 @@ Route::get('dashboard', function () {
 Route::middleware(['auth', 'verified'])
     ->post('sso/start', StartSsoController::class)
     ->name('sso.start');
+
+Route::middleware(['auth', 'verified'])
+    ->post('invites/{inviteToken}/accept', [InviteController::class, 'accept'])
+    ->name('phase4.invites.accept');
 
 Route::middleware([ResolveS2sCaller::class, 'throttle:sso-claims'])
     ->get('idp/claims/{userId}', ClaimsController::class)

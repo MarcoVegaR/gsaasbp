@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Middleware\ApplyPlatformHsts;
+use App\Http\Middleware\EnsureFreshProfileProjection;
+use App\Http\Middleware\EnsureRbacStepUp;
+use App\Http\Middleware\EnsureTenantEntitlement;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
@@ -53,7 +56,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'sidebar_state',
             (string) env('APP_LOCALE_COOKIE', 'locale'),
         ]);
-        $middleware->validateCsrfTokens(except: ['sso/consume', 'sso/redeem']);
+        $middleware->validateCsrfTokens(except: [
+            'sso/consume',
+            'sso/redeem',
+            'tenant/events/ingest',
+            'tenant/billing/webhooks/*',
+        ]);
+        $middleware->alias([
+            'phase4.profile.fresh' => EnsureFreshProfileProjection::class,
+            'phase4.rbac.step-up' => EnsureRbacStepUp::class,
+            'phase4.entitlement' => EnsureTenantEntitlement::class,
+        ]);
 
         $middleware->trustHosts(at: static function (): array {
             $trustedCentralDomains = array_map(

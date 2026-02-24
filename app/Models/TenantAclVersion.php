@@ -9,24 +9,33 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class TenantUser extends Model
+class TenantAclVersion extends Model
 {
-    /** @use HasFactory<\Database\Factories\TenantUserFactory> */
     use BelongsToTenant;
-
     use HasFactory;
+
+    /**
+     * @var string
+     */
+    protected $primaryKey = 'tenant_id';
+
+    /**
+     * @var bool
+     */
+    public $incrementing = false;
+
+    /**
+     * @var string
+     */
+    protected $keyType = 'string';
 
     /**
      * @var list<string>
      */
     protected $fillable = [
         'tenant_id',
-        'user_id',
-        'is_active',
-        'is_banned',
-        'membership_revoked_at',
-        'membership_status',
-        'last_sso_at',
+        'acl_version',
+        'updated_by',
     ];
 
     /**
@@ -35,15 +44,12 @@ class TenantUser extends Model
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
-            'is_banned' => 'boolean',
-            'membership_revoked_at' => 'datetime',
-            'last_sso_at' => 'datetime',
+            'acl_version' => 'integer',
         ];
     }
 
-    public function user(): BelongsTo
+    public function updatedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }
