@@ -405,6 +405,61 @@ test('admin can terminate impersonation and tenant resource server enforces revo
         ->assertJsonPath('code', 'IMPERSONATION_EXPIRED');
 });
 
+test('tenant break-glass banner endpoint terminates session and revokes jti server-side', function () {
+    $tenant = phase7CreateTenant('tenant.localhost');
+
+    $targetUser = User::factory()->create([
+        'email_verified_at' => now(),
+    ]);
+
+    TenantUser::query()->create([
+        'tenant_id' => (string) $tenant->id,
+        'user_id' => $targetUser->id,
+        'is_active' => true,
+        'is_banned' => false,
+        'membership_status' => 'active',
+        'membership_revoked_at' => null,
+    ]);
+
+    $jti = (string) Str::uuid();
+
+    PlatformImpersonationSession::query()->create([
+        'jti' => $jti,
+        'platform_user_id' => 9001,
+        'target_tenant_id' => (string) $tenant->id,
+        'target_user_id' => $targetUser->id,
+        'reason_code' => 'ticket-active',
+        'fingerprint' => phase7Fingerprint(),
+        'issued_at' => now(),
+        'expires_at' => now()->addMinutes(5),
+        'consumed_at' => now(),
+        'revoked_at' => null,
+    ]);
+
+    $this->actingAs($targetUser, 'web')
+        ->withSession([
+            'phase5.impersonation' => [
+                'is_impersonating' => 'true',
+                'actor_platform_user_id' => '9001',
+                'subject_user_id' => (string) $targetUser->id,
+                'impersonation_ticket_id' => 'ticket-active',
+                'jti' => $jti,
+            ],
+        ])
+        ->withHeaders([
+            'User-Agent' => PHASE7_TEST_USER_AGENT,
+            'Accept-Language' => PHASE7_TEST_ACCEPT_LANGUAGE,
+        ])
+        ->postJson('http://tenant.localhost/tenant/impersonation/terminate')
+        ->assertOk()
+        ->assertJsonPath('status', 'terminated');
+
+    $session = PlatformImpersonationSession::query()->find($jti);
+
+    expect($session)->toBeInstanceOf(PlatformImpersonationSession::class);
+    expect($session?->revoked_at)->not->toBeNull();
+});
+
 test('tenant dashboard shares impersonation context when active jti is valid', function () {
     $tenant = phase7CreateTenant('tenant.localhost');
 
@@ -457,5 +512,7 @@ test('tenant dashboard shares impersonation context when active jti is valid', f
 
     $response->assertOk();
     $response->assertJsonPath('props.impersonation.is_impersonating', 'true');
+    $response->assertJsonPath('props.impersonation.actor_platform_user_id', '9001');
+    $response->assertJsonPath('props.impersonation.impersonation_ticket_id', 'ticket-active');
     $response->assertJsonPath('props.impersonation.jti', $jti);
 });

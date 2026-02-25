@@ -28,6 +28,7 @@ Entregar el Panel Central de Administración con interfaz gráfica (Backoffice B
 ### 2.2 Panel Administrativo Frontend (React / Inertia)
 - Nuevo layout asimétrico `AppSidebar` combinando vistas tenant y platform (con `NavMain` parametrizable por contexto y *navLabel*).
 - Componente `AdminPanel` centralizado en `/resources/js/pages/admin/panel.tsx`.
+- Guard de montaje en el panel admin: el componente aborta render cuando detecta `auth.guard !== 'platform'`.
 - Formularios interactivos para:
   - Cambiar estado y emitir aprobaciones 4-ojos de hard delete para tenants.
   - Ejecutar hard delete con tokens atómicos `capability_id`.
@@ -46,6 +47,10 @@ Entregar el Panel Central de Administración con interfaz gráfica (Backoffice B
 - Emisión de claims especiales (`act`) hacia `sso/consume` vía `AdminImpersonationIssueController`.
 - Persistencia de tickets de sesión en tabla `platform_impersonation_sessions` para la trazabilidad paralela de tiempo de vida (TTL).
 - Inyección de contexto persistente dentro del guard tenant interceptando solicitudes del session HTTP e inyectando un banner global rojo "Break-Glass Active".
+- Terminación activa desde tenant UI con botón **Terminate impersonation now** que invalida el `jti` server-side (`POST /tenant/impersonation/terminate`).
+
+### 2.5 Corrección operativa de arranque
+- Se incorporó `App\Support\BusinessModelRegistry` para resolver la carga de `config/tenancy_business_models.php` y mantener la definición versionada de modelos tenant-scoped validada por test de integridad.
 
 ## 3) Certificación ejecutada
 
@@ -58,7 +63,7 @@ php artisan test
 
 Resultado: **PASS**.
 
-- Suite global: 119 tests pasados, 493 aserciones.
+- Suite global: 120 tests pasados, 499 aserciones.
 - Contratos Fase 7 cubren explícitamente:
   - Carga segura del panel con header de CSP `frame-ancestors 'none'`.
   - Aislamiento total de usuarios del guard `web` al intentar acceder a rutas del guard `platform`.
@@ -68,6 +73,8 @@ Resultado: **PASS**.
   - Generación *one-time* y streaming de *Forensic Exports*.
   - Encerramiento de Telemetry Privacy Budget bajo el threshold local con error 429.
   - Respeto del `jti` y propagación de estado *is_impersonating* en tenant session.
+  - Terminación de break-glass desde tenant UI con revocación server-side del `jti`.
+  - Guard de montaje del panel admin para evitar render bajo guard distinto de `platform`.
 
 ### 3.2 Frontend/Type safety/build + guardrails
 

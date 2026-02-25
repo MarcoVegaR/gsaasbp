@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import AlertError from '@/components/alert-error';
 import {
@@ -237,6 +237,7 @@ export default function AdminPanel({
     session_timeout_seconds,
     privacy_budget_window_seconds,
 }: AdminPanelProps) {
+    const { auth } = usePage().props;
     const [stepUpByScope, setStepUpByScope] = useState<Record<string, string>>({});
     const [stepUpBusy, setStepUpBusy] = useState<string | null>(null);
 
@@ -735,6 +736,25 @@ export default function AdminPanel({
         () => telemetryPayload?.series.filter((bucket) => bucket.value !== null).length ?? 0,
         [telemetryPayload],
     );
+
+    const resolvedGuard = typeof auth?.guard === 'string' ? auth.guard : guard;
+
+    if (resolvedGuard !== 'platform') {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title="Central admin panel" />
+                <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                    <Alert variant="destructive">
+                        <AlertTitle>Admin guard mismatch detected</AlertTitle>
+                        <AlertDescription>
+                            The central admin panel can only mount under the
+                            platform guard. Detected guard: {resolvedGuard}.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
