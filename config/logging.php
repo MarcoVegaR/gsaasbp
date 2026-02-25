@@ -118,6 +118,13 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'security_alarms' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/security-alarms.log'),
+            'level' => env('LOG_SECURITY_ALARMS_LEVEL', 'warning'),
+            'replace_placeholders' => true,
+        ],
+
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,

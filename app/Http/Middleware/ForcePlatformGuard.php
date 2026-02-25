@@ -13,6 +13,13 @@ final class ForcePlatformGuard
 {
     public function handle(Request $request, Closure $next): Response
     {
+        $defaultGuardActor = $request->user();
+        $platformActor = $request->user('platform');
+
+        if ($platformActor === null && $defaultGuardActor !== null) {
+            abort(403, 'Forbidden.');
+        }
+
         Auth::shouldUse('platform');
 
         return $next($request);

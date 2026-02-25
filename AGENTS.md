@@ -140,3 +140,28 @@
   - `node scripts/ci/40_check_sso_csp_contract.mjs`
   - `node scripts/ci/50_check_sso_no_body_logs.mjs`
   - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
+
+## 10. Cierre Fase 7 (Operativo)
+- Documentación oficial de cierre:
+  - `docs/plans/phase-7-cierre-ejecucion.md`
+  - `docs/manuals/phase-7-manual-usuario.md`
+- Contratos funcionales obligatorios de Panel Administrativo B2B:
+  - Todo el backoffice B2B `/admin/*` opera estrictamente sobre el guard `platform`. Los usuarios de tenant (guard `web`) reciben redirect/403 de inmediato para evitar *guard confusion*.
+  - Inyección segura de layout Inertia parametrizable: Las props y el componente detectan qué contexto cargar (`web` vs `platform`) para evitar montar un layout en el ecosistema equivocado.
+  - Hard Delete exige un proceso transaccional de 4-ojos asíncrono (solicitante distinto del aprobador y del ejecutor final) más un Step-Up capability temporal verificado atómicamente por la base de datos.
+  - Auditoría Forense impone rangos temporales obligatorios (*Sargable Windows*) para PostgreSQL partition pruning y exporta a disco con descargas tipo One-Time Token (tokens efímeros sin PII expuestos en la URL).
+  - Impersonation transaccional aísla a `actor` vs `subject` a través del claim JWT `act`. Inyecta obligatoriamente contexto en la UI Tenant (Banner Rojo `is_impersonating`) y es revocable remotamente por el JTI en cualquier momento.
+  - Telemetría global monitorea ataques iterativos aplicando *Privacy Budgets* sobre los requests OTel. Costos lógicos por ventana abortan consultas intrusivas con `429 PRIVACY_BUDGET_EXHAUSTED`.
+- Certificación mínima requerida para cambios en el Panel B2B (Central Admin):
+  - `php artisan test`
+  - `php artisan test tests/Feature/Phase7/Phase7ContractsTest.php --stop-on-failure`
+  - `npm run types`
+  - `node scripts/ci/00_guardrails.mjs`
+  - `node scripts/ci/10_check_react_tree.mjs`
+  - `node scripts/ci/20_check_shadcn_components_json.mjs`
+  - `npm run build`
+  - `VITE_ENTRY_KEY=resources/js/app.tsx node scripts/ci/30_check_vite_initial_js_budget.mjs`
+  - `node scripts/ci/40_check_sso_csp_contract.mjs`
+  - `node scripts/ci/50_check_sso_no_body_logs.mjs`
+  - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
+

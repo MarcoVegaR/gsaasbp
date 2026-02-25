@@ -82,9 +82,18 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::define('platform.admin.access', static fn (User $user): bool => false);
         Gate::define('platform.step-up.issue', static fn (User $user): bool => false);
+        Gate::define('platform.tenants.view', static fn (User $user): bool => false);
         Gate::define('platform.tenants.manage-status', static fn (User $user): bool => false);
+        Gate::define('platform.tenants.hard-delete.approve', static fn (User $user): bool => false);
+        Gate::define('platform.tenants.hard-delete.execute', static fn (User $user): bool => false);
         Gate::define('platform.tenants.hard-delete', static fn (User $user): bool => false);
         Gate::define('platform.telemetry.view', static fn (User $user): bool => false);
+        Gate::define('platform.audit.view', static fn (User $user): bool => false);
+        Gate::define('platform.audit.export', static fn (User $user): bool => false);
+        Gate::define('platform.billing.view', static fn (User $user): bool => false);
+        Gate::define('platform.billing.reconcile', static fn (User $user): bool => false);
+        Gate::define('platform.impersonation.issue', static fn (User $user): bool => false);
+        Gate::define('platform.impersonation.terminate', static fn (User $user): bool => false);
 
         Gate::before(static function (?User $user, string $ability): ?bool {
             if ($user === null) {

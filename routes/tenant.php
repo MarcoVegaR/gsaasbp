@@ -8,6 +8,7 @@ use App\Http\Controllers\Phase4\TenantAuditLogController;
 use App\Http\Controllers\Phase4\TenantBillingController;
 use App\Http\Controllers\Phase4\TenantEventIngestController;
 use App\Http\Controllers\Phase4\TenantRbacController;
+use App\Http\Controllers\Phase7\TenantImpersonationTerminateController;
 use App\Http\Controllers\Phase6\TenantNotificationDestroyController;
 use App\Http\Controllers\Phase6\TenantNotificationIndexController;
 use App\Http\Controllers\Phase6\TenantNotificationMarkReadController;
@@ -51,7 +52,7 @@ Route::middleware([
         return 'This is your multi-tenant application. The id of the current tenant is '.tenant('id');
     });
 
-    Route::middleware(['auth', 'verified'])->group(function () {
+    Route::middleware(['auth', 'verified', 'phase7.impersonation.enforce'])->group(function () {
         Route::get('/tenant/dashboard', function () {
             return Inertia::render('tenant/dashboard');
         })->name('tenant.dashboard');
@@ -59,6 +60,10 @@ Route::middleware([
         Route::get('/tenant/settings', function () {
             return Inertia::render('tenant/settings');
         })->name('tenant.settings');
+
+        Route::post('/tenant/impersonation/terminate', TenantImpersonationTerminateController::class)
+            ->middleware('phase5.tenant.active')
+            ->name('tenant.phase7.impersonation.terminate');
 
         Route::prefix('/tenant/notifications')
             ->name('tenant.phase6.notifications.')

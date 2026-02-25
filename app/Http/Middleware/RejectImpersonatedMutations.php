@@ -25,7 +25,10 @@ final class RejectImpersonatedMutations
         $routeName = (string) optional($request->route())->getName();
         $allowlist = array_values(array_filter(array_map(
             static fn (string $name): string => trim($name),
-            (array) config('phase5.impersonation.mutation_allowlist', []),
+            [
+                ...(array) config('phase5.impersonation.mutation_allowlist', []),
+                ...(array) config('phase7.impersonation.allowlist_termination_routes', []),
+            ],
         ), static fn (string $name): bool => $name !== ''));
 
         if (in_array($routeName, $allowlist, true)) {

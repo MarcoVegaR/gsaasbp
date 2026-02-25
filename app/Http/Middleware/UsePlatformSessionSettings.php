@@ -17,6 +17,9 @@ final class UsePlatformSessionSettings
             return $next($request);
         }
 
+        ini_set('session.use_trans_sid', '0');
+        ini_set('session.use_strict_mode', '1');
+
         $sameSite = $this->normalizeSameSite((string) config('phase5.platform.session_same_site', 'lax'));
 
         config([

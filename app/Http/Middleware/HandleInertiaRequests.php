@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Support\I18nCatalog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Middleware;
 
@@ -48,7 +49,9 @@ class HandleInertiaRequests extends Middleware
             'supportedLocales' => $this->supportedLocales(),
             'auth' => [
                 'user' => $request->user(),
+                'guard' => $this->resolvedGuard($request),
             ],
+            'impersonation' => $this->resolvedImpersonationContext($request),
             'coreDictionary' => I18nCatalog::core($locale),
             'pageDictionary' => Inertia::defer(
                 fn (): array => I18nCatalog::page($locale, $this->resolvePageDictionaryKey($request)),
@@ -99,5 +102,39 @@ class HandleInertiaRequests extends Middleware
         }
 
         return str_replace('/', '.', $path);
+    }
+
+    private function resolvedGuard(Request $request): string
+    {
+        if ($request->user('platform') !== null || Auth::guard('platform')->check()) {
+            return 'platform';
+        }
+
+        return 'web';
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    private function resolvedImpersonationContext(Request $request): array
+    {
+        $context = $request->session()->get('phase5.impersonation');
+
+        if (! is_array($context)) {
+            return [
+                'is_impersonating' => 'false',
+                'actor_platform_user_id' => null,
+                'subject_user_id' => null,
+                'impersonation_ticket_id' => null,
+            ];
+        }
+
+        return [
+            'is_impersonating' => (string) ($context['is_impersonating'] ?? 'false'),
+            'actor_platform_user_id' => isset($context['actor_platform_user_id']) ? trim((string) $context['actor_platform_user_id']) : null,
+            'subject_user_id' => isset($context['subject_user_id']) ? trim((string) $context['subject_user_id']) : null,
+            'impersonation_ticket_id' => isset($context['impersonation_ticket_id']) ? trim((string) $context['impersonation_ticket_id']) : null,
+            'jti' => isset($context['jti']) ? trim((string) $context['jti']) : null,
+        ];
     }
 }

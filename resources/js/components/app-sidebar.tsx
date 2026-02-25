@@ -12,6 +12,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import admin from '@/routes/admin';
 import { dashboard } from '@/routes';
 import tenant from '@/routes/tenant';
 import type { NavItem } from '@/types';
@@ -32,7 +33,8 @@ const footerNavItems: NavItem[] = [
 
 export function AppSidebar() {
     const page = usePage();
-    const isTenantArea = page.url.startsWith('/tenant');
+    const isAdminArea = page.url.startsWith('/admin');
+    const isTenantArea = !isAdminArea && page.url.startsWith('/tenant');
 
     const mainNavItems: NavItem[] = isTenantArea
         ? [
@@ -47,6 +49,14 @@ export function AppSidebar() {
                   icon: Settings2,
               },
           ]
+        : isAdminArea
+          ? [
+                {
+                    title: 'Central admin panel',
+                    href: admin.panel(),
+                    icon: LayoutGrid,
+                },
+            ]
         : [
               {
                   title: 'Dashboard',
@@ -55,7 +65,17 @@ export function AppSidebar() {
               },
           ];
 
-    const homeHref = isTenantArea ? tenant.dashboard() : dashboard();
+    const homeHref = isTenantArea
+        ? tenant.dashboard()
+        : isAdminArea
+          ? admin.panel()
+          : dashboard();
+
+    const navLabel = isTenantArea
+        ? 'Tenant workspace'
+        : isAdminArea
+          ? 'Platform admin'
+          : 'Platform';
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -72,7 +92,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={mainNavItems} label={navLabel} />
             </SidebarContent>
 
             <SidebarFooter>

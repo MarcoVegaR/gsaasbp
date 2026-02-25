@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Middleware\ApplyPlatformHsts;
+use App\Http\Middleware\ApplyAdminFrameGuards;
+use App\Http\Middleware\EnforceImpersonationSession;
+use App\Http\Middleware\EnsureAdminMutationOrigin;
+use App\Http\Middleware\EnsureAdminSessionFresh;
 use App\Http\Middleware\EnsureActiveTenantStatus;
 use App\Http\Middleware\EnsureFreshProfileProjection;
 use App\Http\Middleware\EnsurePlatformStepUpCapability;
@@ -9,6 +13,7 @@ use App\Http\Middleware\EnsureTenantEntitlement;
 use App\Http\Middleware\ForcePlatformGuard;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RejectAdminQuerySecrets;
 use App\Http\Middleware\RejectImpersonatedMutations;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTenantTeamContext;
@@ -76,6 +81,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'phase5.tenant.active' => EnsureActiveTenantStatus::class,
             'phase5.impersonation.block-mutations' => RejectImpersonatedMutations::class,
             'phase5.step-up' => EnsurePlatformStepUpCapability::class,
+            'phase7.admin.origin' => EnsureAdminMutationOrigin::class,
+            'phase7.admin.query-secrets' => RejectAdminQuerySecrets::class,
+            'phase7.admin.session-fresh' => EnsureAdminSessionFresh::class,
+            'phase7.admin.frame-guards' => ApplyAdminFrameGuards::class,
+            'phase7.impersonation.enforce' => EnforceImpersonationSession::class,
         ]);
 
         $middleware->trustHosts(at: static function (): array {
@@ -99,6 +109,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(SubstituteBindings::class, PreventAccessFromCentralDomains::class);
         $middleware->prependToPriorityList(SubstituteBindings::class, InitializeTenancyByDomain::class);
         $middleware->prependToPriorityList(SubstituteBindings::class, SetTenantTeamContext::class);
+        $middleware->prependToPriorityList(SubstituteBindings::class, ForcePlatformGuard::class);
 
         $middleware->web(prepend: [
             UsePlatformSessionSettings::class,

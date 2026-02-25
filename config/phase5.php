@@ -27,7 +27,12 @@ return [
         'hard_delete_strict_ip' => (bool) env('PHASE5_STEP_UP_HARD_DELETE_STRICT_IP', false),
         'allowed_scopes' => array_values(array_filter(array_map(
             static fn (string $scope): string => trim($scope),
-            explode(',', (string) env('PHASE5_STEP_UP_ALLOWED_SCOPES', 'platform.tenants.hard-delete')),
+            explode(',', (string) env('PHASE5_STEP_UP_ALLOWED_SCOPES', implode(',', [
+                'platform.tenants.hard-delete',
+                'platform.audit.export',
+                'platform.billing.reconcile',
+                'platform.impersonation.issue',
+            ]))),
         ), static fn (string $scope): bool => $scope !== '')),
     ],
 

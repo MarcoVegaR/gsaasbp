@@ -12,6 +12,15 @@ export type User = {
 
 export type Auth = {
     user: User;
+    guard?: string;
+};
+
+export type ImpersonationContext = {
+    is_impersonating: string;
+    actor_platform_user_id: string | null;
+    subject_user_id: string | null;
+    impersonation_ticket_id: string | null;
+    jti?: string | null;
 };
 
 export type TwoFactorSetupData = {
