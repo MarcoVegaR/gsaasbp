@@ -177,6 +177,10 @@ final class DemoDataSeeder extends Seeder
             'tenant.billing.view',
             'tenant.audit.view',
             'tenant.notifications.read',
+            'tenant.sample-entity.view',
+            'tenant.sample-entity.create',
+            'tenant.sample-entity.update',
+            'tenant.sample-entity.delete',
         ];
 
         foreach ($platformPermissions as $permission) {

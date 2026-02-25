@@ -63,7 +63,7 @@ Si ejecutaste `php artisan migrate:fresh --seed`, puedes usar estas cuentas de e
 
 | Opcion | Ruta | Que permite |
 |---|---|---|
-| Settings (solo guard `web`) | `GET /settings/profile` | Gestion de perfil/cuenta del usuario normal. |
+| Settings (guard `web`) | Central: `GET /settings/profile` / Tenant: `GET /tenant/settings` | Abrir ajustes segun contexto activo (perfil central o workspace tenant). |
 | Log out (`web`) | `POST /logout` | Cerrar sesion usuario web. |
 | Log out (`platform`) | `POST /admin/logout` | Cerrar sesion admin global. |
 

@@ -10,6 +10,7 @@ import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
+import tenant from '@/routes/tenant';
 import type { Auth, User } from '@/types';
 
 type Props = {
@@ -18,9 +19,12 @@ type Props = {
 
 export function UserMenuContent({ user }: Props) {
     const cleanup = useMobileNavigation();
-    const { auth } = usePage<{ auth: Auth }>().props;
+    const page = usePage<{ auth: Auth }>();
+    const { auth } = page.props;
     const isPlatformGuard = auth.guard === 'platform';
+    const isTenantArea = page.url.startsWith('/tenant');
     const logoutUrl = isPlatformGuard ? '/admin/logout' : logout();
+    const settingsUrl = isTenantArea ? tenant.settings() : edit();
 
     const handleLogout = () => {
         cleanup();
@@ -42,7 +46,7 @@ export function UserMenuContent({ user }: Props) {
                         <DropdownMenuItem asChild>
                             <Link
                                 className="block w-full cursor-pointer"
-                                href={edit()}
+                                href={settingsUrl}
                                 prefetch
                                 onClick={cleanup}
                             >
