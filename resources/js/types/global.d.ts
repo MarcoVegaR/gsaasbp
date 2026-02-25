@@ -1,4 +1,9 @@
-import type { Auth, I18nSharedProps, ImpersonationContext } from '@/types';
+import type {
+    Auth,
+    I18nSharedProps,
+    ImpersonationContext,
+    TenantModuleNavItem,
+} from '@/types';
 
 declare module '@inertiajs/core' {
     export interface InertiaConfig {
@@ -7,6 +12,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             impersonation: ImpersonationContext;
             sidebarOpen: boolean;
+            tenantModules: TenantModuleNavItem[];
             [key: string]: unknown;
         };
     }

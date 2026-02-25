@@ -19,8 +19,7 @@ final class SsoAuditLogger
         string $mode,
         string $outcome,
         array $forensicContext = [],
-    ): void
-    {
+    ): void {
         $normalizedForensic = $this->normalizeForensicContext($forensicContext);
 
         Log::info('sso.consume', [

@@ -1,12 +1,13 @@
 <?php
 
-use App\Http\Middleware\ApplyPlatformHsts;
 use App\Http\Middleware\ApplyAdminFrameGuards;
+use App\Http\Middleware\ApplyPlatformHsts;
 use App\Http\Middleware\EnforceImpersonationSession;
+use App\Http\Middleware\EnsureActiveTenantStatus;
 use App\Http\Middleware\EnsureAdminMutationOrigin;
 use App\Http\Middleware\EnsureAdminSessionFresh;
-use App\Http\Middleware\EnsureActiveTenantStatus;
 use App\Http\Middleware\EnsureFreshProfileProjection;
+use App\Http\Middleware\EnsurePlatformAuthenticated;
 use App\Http\Middleware\EnsurePlatformStepUpCapability;
 use App\Http\Middleware\EnsureRbacStepUp;
 use App\Http\Middleware\EnsureTenantEntitlement;
@@ -60,6 +61,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withCommands([
+        app_path('Console/Commands'),
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: [
             'appearance',
@@ -85,6 +89,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'phase7.admin.query-secrets' => RejectAdminQuerySecrets::class,
             'phase7.admin.session-fresh' => EnsureAdminSessionFresh::class,
             'phase7.admin.frame-guards' => ApplyAdminFrameGuards::class,
+            'phase7.platform.auth' => EnsurePlatformAuthenticated::class,
             'phase7.impersonation.enforce' => EnforceImpersonationSession::class,
         ]);
 

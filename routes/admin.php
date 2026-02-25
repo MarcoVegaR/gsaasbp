@@ -18,6 +18,7 @@ use App\Http\Controllers\Phase7\AdminHardDeleteApprovalController;
 use App\Http\Controllers\Phase7\AdminImpersonationIssueController;
 use App\Http\Controllers\Phase7\AdminImpersonationTerminateController;
 use App\Http\Controllers\Phase7\AdminPanelController;
+use App\Http\Controllers\Phase7\AdminSessionController;
 use App\Http\Controllers\Phase7\AdminTenantIndexController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,9 +28,34 @@ Route::prefix('admin')
         'phase5.platform.cookie',
         'phase5.platform.guard',
         'phase7.admin.query-secrets',
+    ])
+    ->group(function (): void {
+        Route::middleware('guest:platform')->group(function (): void {
+            Route::get('login', [AdminSessionController::class, 'create'])
+                ->name('login');
+
+            Route::post('login', [AdminSessionController::class, 'store'])
+                ->middleware('throttle:login')
+                ->name('login.store');
+        });
+
+        Route::post('logout', [AdminSessionController::class, 'destroy'])
+            ->middleware([
+                'phase7.platform.auth',
+                'phase7.admin.origin',
+            ])
+            ->name('logout');
+    });
+
+Route::prefix('admin')
+    ->name('admin.')
+    ->middleware([
+        'phase5.platform.cookie',
+        'phase5.platform.guard',
+        'phase7.admin.query-secrets',
         'phase7.admin.session-fresh',
         'phase7.admin.frame-guards',
-        'auth:platform',
+        'phase7.platform.auth',
         'verified',
         'phase7.admin.origin',
         'phase5.impersonation.block-mutations',

@@ -28,7 +28,7 @@ final class BusinessModelRegistry
      */
     public static function models(): array
     {
-        return [
+        $coreModels = [
             ActivityLog::class,
             BillingEventProcessed::class,
             BillingIncident::class,
@@ -46,5 +46,18 @@ final class BusinessModelRegistry
             TenantUserProfileProjection::class,
             TenantUserRealtimeEpoch::class,
         ];
+
+        $generatedModels = array_values(array_filter(array_map(
+            static fn (mixed $modelClass): string => trim((string) $modelClass),
+            (array) config('phase8_modules.business_models', []),
+        ), static fn (string $modelClass): bool => $modelClass !== ''));
+
+        /** @var array<int, class-string> $models */
+        $models = array_values(array_unique([
+            ...$coreModels,
+            ...$generatedModels,
+        ]));
+
+        return $models;
     }
 }

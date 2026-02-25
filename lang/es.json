@@ -1,13 +1,16 @@
 {
+    "core.action.cancel": "Cancelar",
+    "core.action.save": "Guardar",
     "core.app.name": "Laravel",
     "core.nav.dashboard": "Panel",
+    "core.nav.generated.sample-entity": "Sample Entity",
     "core.nav.settings": "Configuracion",
-    "core.action.save": "Guardar",
-    "core.action.cancel": "Cancelar",
-    "page.home.title": "Bienvenido",
     "page.home.cta.get_started": "Comencemos",
-    "page.tenant.dashboard.title": "Panel del tenant",
-    "page.tenant.settings.title": "Configuracion del tenant",
+    "page.home.title": "Bienvenido",
     "page.login.title": "Iniciar sesion",
-    "page.register.title": "Registro"
+    "page.register.title": "Registro",
+    "page.tenant.dashboard.title": "Panel del tenant",
+    "page.tenant.modules.sample-entity.description": "Modulo de tenant generado por Phase 8 DX.",
+    "page.tenant.modules.sample-entity.title": "Sample Entity",
+    "page.tenant.settings.title": "Configuracion del tenant"
 }

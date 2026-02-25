@@ -18,6 +18,15 @@ import tenant from '@/routes/tenant';
 import type { NavItem } from '@/types';
 import AppLogo from './app-logo';
 
+type TenantModuleNavItem = {
+    title: string;
+    href: string;
+};
+
+type SidebarPageProps = {
+    tenantModules?: TenantModuleNavItem[];
+};
+
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -32,9 +41,17 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const page = usePage();
+    const page = usePage<SidebarPageProps>();
     const isAdminArea = page.url.startsWith('/admin');
     const isTenantArea = !isAdminArea && page.url.startsWith('/tenant');
+
+    const tenantModules = Array.isArray(page.props.tenantModules)
+        ? page.props.tenantModules.filter(
+              (item): item is TenantModuleNavItem =>
+                  typeof item?.title === 'string' && item.title !== '' &&
+                  typeof item?.href === 'string' && item.href !== '',
+          )
+        : [];
 
     const mainNavItems: NavItem[] = isTenantArea
         ? [
@@ -48,6 +65,11 @@ export function AppSidebar() {
                   href: tenant.settings(),
                   icon: Settings2,
               },
+              ...tenantModules.map((module) => ({
+                  title: module.title,
+                  href: module.href,
+                  icon: Folder,
+              })),
           ]
         : isAdminArea
           ? [

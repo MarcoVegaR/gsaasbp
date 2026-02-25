@@ -16,8 +16,7 @@ final class SystemContext
         ?Model $actor = null,
         ?string $purpose = null,
         ?string $targetTenantId = null,
-    ): mixed
-    {
+    ): mixed {
         $tenancy = tenancy();
         $wasInitialized = $tenancy->initialized;
         $previousTenant = tenant();

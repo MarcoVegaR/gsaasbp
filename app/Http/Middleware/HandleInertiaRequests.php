@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Support\I18nCatalog;
+use App\Support\Phase8\ModuleCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -58,6 +59,7 @@ class HandleInertiaRequests extends Middleware
                 'i18n',
             ),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'tenantModules' => app(ModuleCatalog::class)->tenantNavigationItems(),
         ];
     }
 

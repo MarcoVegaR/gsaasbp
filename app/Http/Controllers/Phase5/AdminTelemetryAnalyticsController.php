@@ -19,8 +19,7 @@ final class AdminTelemetryAnalyticsController extends Controller
         Request $request,
         AnalyticsAggregateService $analytics,
         TelemetryPrivacyBudgetService $privacyBudget,
-    ): JsonResponse
-    {
+    ): JsonResponse {
         $actor = $request->user('platform');
         abort_unless($actor instanceof User, 401, 'Unauthorized.');
 

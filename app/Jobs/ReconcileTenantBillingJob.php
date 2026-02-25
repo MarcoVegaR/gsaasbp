@@ -30,8 +30,7 @@ class ReconcileTenantBillingJob implements ShouldQueue
         EntitlementService $entitlements,
         ?TenantStatusService $tenantStatus = null,
         ?JobAbortTelemetry $jobAbortTelemetry = null,
-    ): void
-    {
+    ): void {
         $tenantStatus ??= app(TenantStatusService::class);
         $jobAbortTelemetry ??= app(JobAbortTelemetry::class);
 

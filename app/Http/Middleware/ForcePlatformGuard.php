@@ -17,7 +17,11 @@ final class ForcePlatformGuard
         $platformActor = $request->user('platform');
 
         if ($platformActor === null && $defaultGuardActor !== null) {
-            abort(403, 'Forbidden.');
+            if ($request->expectsJson()) {
+                abort(403, 'Forbidden.');
+            }
+
+            return redirect()->guest(route('login'));
         }
 
         Auth::shouldUse('platform');

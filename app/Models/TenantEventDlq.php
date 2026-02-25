@@ -14,6 +14,11 @@ class TenantEventDlq extends Model
     use HasFactory;
 
     /**
+     * @var string
+     */
+    protected $table = 'tenant_event_dlq';
+
+    /**
      * @var list<string>
      */
     protected $fillable = [

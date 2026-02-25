@@ -8,10 +8,10 @@ use App\Http\Controllers\Phase4\TenantAuditLogController;
 use App\Http\Controllers\Phase4\TenantBillingController;
 use App\Http\Controllers\Phase4\TenantEventIngestController;
 use App\Http\Controllers\Phase4\TenantRbacController;
-use App\Http\Controllers\Phase7\TenantImpersonationTerminateController;
 use App\Http\Controllers\Phase6\TenantNotificationDestroyController;
 use App\Http\Controllers\Phase6\TenantNotificationIndexController;
 use App\Http\Controllers\Phase6\TenantNotificationMarkReadController;
+use App\Http\Controllers\Phase7\TenantImpersonationTerminateController;
 use App\Http\Controllers\Sso\Tenant\ConsumeSsoController;
 use App\Http\Middleware\ResolveS2sCaller;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +53,10 @@ Route::middleware([
     });
 
     Route::middleware(['auth', 'verified', 'phase7.impersonation.enforce'])->group(function () {
+        Route::get('/dashboard', function () {
+            return redirect('/tenant/dashboard');
+        })->name('tenant.dashboard.redirect');
+
         Route::get('/tenant/dashboard', function () {
             return Inertia::render('tenant/dashboard');
         })->name('tenant.dashboard');
@@ -64,6 +68,12 @@ Route::middleware([
         Route::post('/tenant/impersonation/terminate', TenantImpersonationTerminateController::class)
             ->middleware('phase5.tenant.active')
             ->name('tenant.phase7.impersonation.terminate');
+
+        $generatedModuleRouteFiles = glob(base_path('routes/generated/tenant/*.php')) ?: [];
+
+        foreach ($generatedModuleRouteFiles as $generatedModuleRouteFile) {
+            require $generatedModuleRouteFile;
+        }
 
         Route::prefix('/tenant/notifications')
             ->name('tenant.phase6.notifications.')

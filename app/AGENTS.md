@@ -126,6 +126,32 @@
 
 ---
 
+## 11. Cierre Fase 8 (Operativo)
+- Documentación oficial de cierre:
+  - `docs/plans/phase-8-cierre-ejecucion.md`
+  - `docs/manuals/phase-8-manual-usuario.md`
+- Contratos funcionales obligatorios del Module Generator DX:
+  - El comando `php artisan make:saas-module {name} --schema=...` opera bajo lock advisory global con timeout y semántica fail-closed.
+  - La generación usa staging en el mismo filesystem y aplica commit por rename atómico; ante error se ejecuta rollback determinista de archivos nuevos y reemplazos.
+  - El parser de esquema rechaza YAML inseguro (`!tags`), identifiers inválidos, keywords reservadas y `unique` sin `tenant_id` como primer elemento.
+  - Para `soft_deletes + unique`, solo PostgreSQL (`database_driver=pgsql`) está permitido; en motores no soportados debe fallar antes de escribir en destino.
+  - Los módulos generados registran rutas tenant-scoped con binding estricto (`Route::tenantResource`) y deben retornar `404` uniforme ante IDs cross-tenant (anti-BOLA).
+  - El código generado pasa lint estático (PHP AST + invariantes frontend) bloqueando anti-patrones como `DB::table`, `DB::select` y `withoutGlobalScope(s)`.
+- Certificación mínima requerida para cambios en Phase 8 / DX Generator:
+  - `php artisan test tests/Feature/Phase8/Phase8ContractsTest.php --stop-on-failure`
+  - `php artisan test`
+  - `npm run types`
+  - `node scripts/ci/00_guardrails.mjs`
+  - `node scripts/ci/10_check_react_tree.mjs`
+  - `node scripts/ci/20_check_shadcn_components_json.mjs`
+  - `npm run build`
+  - `VITE_ENTRY_KEY=resources/js/app.tsx node scripts/ci/30_check_vite_initial_js_budget.mjs`
+  - `node scripts/ci/40_check_sso_csp_contract.mjs`
+  - `node scripts/ci/50_check_sso_no_body_logs.mjs`
+  - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
+
+---
+
 ## 8. Operación Post-Fase 3 (Auth, SSO Transaccional & Lifecycle)
 - **IdP Claims (contrato fijo):**
   - `tenant_id` SIEMPRE derivado del caller S2S; nunca desde input del request.

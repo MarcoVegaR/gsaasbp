@@ -1,7 +1,9 @@
 <?php
 
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Laravel\Fortify\Features;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -22,6 +24,27 @@ test('users can authenticate using the login screen', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
+});
+
+test('tenant users can reach tenant dashboard after login redirect chain', function () {
+    $tenant = Tenant::create(['id' => (string) Str::uuid()]);
+    $tenant->domains()->create(['domain' => 'tenant.localhost']);
+
+    $user = User::factory()->create();
+
+    $response = $this->post('http://tenant.localhost/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertRedirect('/dashboard');
+
+    $this->get('http://tenant.localhost/dashboard')
+        ->assertRedirect('/tenant/dashboard');
+
+    $this->get('http://tenant.localhost/tenant/dashboard')
+        ->assertOk();
 });
 
 test('users with two factor enabled are redirected to two factor challenge', function () {

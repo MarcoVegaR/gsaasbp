@@ -14,14 +14,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
         if (app()->environment('testing')) {
+            User::query()->firstOrCreate([
+                'email' => 'test@example.com',
+            ], [
+                'name' => 'Test User',
+                'email_verified_at' => now(),
+                'password' => 'password',
+            ]);
+
             $tenant = Tenant::firstOrCreate([
                 'id' => '00000000-0000-0000-0000-000000000001',
             ]);
@@ -29,6 +30,10 @@ class DatabaseSeeder extends Seeder
             $tenant->domains()->firstOrCreate([
                 'domain' => env('PLAYWRIGHT_TENANT_DOMAIN', 'tenant.localhost'),
             ]);
+
+            return;
         }
+
+        $this->call(DemoDataSeeder::class);
     }
 }

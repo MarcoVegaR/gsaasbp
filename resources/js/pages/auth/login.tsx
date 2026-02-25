@@ -15,13 +15,19 @@ type Props = {
     status?: string;
     canResetPassword: boolean;
     canRegister: boolean;
+    loginAction?: string;
 };
 
 export default function Login({
     status,
     canResetPassword,
     canRegister,
+    loginAction,
 }: Props) {
+    const formDefinition = loginAction
+        ? { action: loginAction, method: 'post' as const }
+        : store.form();
+
     return (
         <AuthLayout
             title="Log in to your account"
@@ -30,7 +36,7 @@ export default function Login({
             <Head title="Log in" />
 
             <Form
-                {...store.form()}
+                {...formDefinition}
                 resetOnSuccess={['password']}
                 className="flex flex-col gap-6"
             >

@@ -148,6 +148,9 @@ Request
 - ✅ **Fase 3 cerrada y certificada** — ver `docs/plans/phase-3-cierre-ejecucion.md` y `docs/manuals/phase-3-manual-usuario.md`.
 - ✅ **Fase 4 cerrada y certificada** — ver `docs/plans/phase-4-cierre-ejecucion.md` y `docs/manuals/phase-4-manual-usuario.md`.
 - ✅ **Fase 5 cerrada y certificada** — ver `docs/plans/phase-5-cierre-ejecucion.md` y `docs/manuals/phase-5-manual-usuario.md`.
+- ✅ **Fase 6 cerrada y certificada** — ver `docs/plans/phase-6-cierre-ejecucion.md` y `docs/manuals/phase-6-manual-usuario.md`.
+- ✅ **Fase 7 cerrada y certificada** — ver `docs/plans/phase-7-cierre-ejecucion.md` y `docs/manuals/phase-7-manual-usuario.md`.
+- ✅ **Fase 8 cerrada y certificada** — ver `docs/plans/phase-8-cierre-ejecucion.md` y `docs/manuals/phase-8-manual-usuario.md`.
 
 ---
 

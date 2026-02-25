@@ -113,7 +113,7 @@ final class TenantDirectoryService
         /** @var array<string, int> $result */
         $result = SystemContext::execute(function () use ($tenantIds): array {
             return TenantEntitlement::query()
-                ->selectRaw('tenant_id, SUM(CASE WHEN granted = 1 THEN 1 ELSE 0 END) as granted_count')
+                ->selectRaw('tenant_id, SUM(CASE WHEN granted THEN 1 ELSE 0 END) as granted_count')
                 ->whereIn('tenant_id', $tenantIds)
                 ->groupBy('tenant_id')
                 ->pluck('granted_count', 'tenant_id')

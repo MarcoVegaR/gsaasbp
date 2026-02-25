@@ -12,3 +12,8 @@ export type NavItem = {
     icon?: LucideIcon | null;
     isActive?: boolean;
 };
+
+export type TenantModuleNavItem = {
+    title: string;
+    href: string;
+};

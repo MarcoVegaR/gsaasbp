@@ -35,7 +35,7 @@ final class LongRunningTenantMutationJob implements ShouldQueue
             return;
         }
 
-        ($probe ?? new NoopLongRunningJobProbe())->beforeIrreversibleSideEffect($this->tenantId);
+        ($probe ?? new NoopLongRunningJobProbe)->beforeIrreversibleSideEffect($this->tenantId);
 
         try {
             $tenantStatus->ensureActive($this->tenantId);
