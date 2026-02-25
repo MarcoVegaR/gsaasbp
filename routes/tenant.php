@@ -8,6 +8,9 @@ use App\Http\Controllers\Phase4\TenantAuditLogController;
 use App\Http\Controllers\Phase4\TenantBillingController;
 use App\Http\Controllers\Phase4\TenantEventIngestController;
 use App\Http\Controllers\Phase4\TenantRbacController;
+use App\Http\Controllers\Phase6\TenantNotificationDestroyController;
+use App\Http\Controllers\Phase6\TenantNotificationIndexController;
+use App\Http\Controllers\Phase6\TenantNotificationMarkReadController;
 use App\Http\Controllers\Sso\Tenant\ConsumeSsoController;
 use App\Http\Middleware\ResolveS2sCaller;
 use Illuminate\Support\Facades\Route;
@@ -56,6 +59,20 @@ Route::middleware([
         Route::get('/tenant/settings', function () {
             return Inertia::render('tenant/settings');
         })->name('tenant.settings');
+
+        Route::prefix('/tenant/notifications')
+            ->name('tenant.phase6.notifications.')
+            ->middleware('phase5.tenant.active')
+            ->group(function (): void {
+                Route::get('/', TenantNotificationIndexController::class)
+                    ->name('index');
+
+                Route::patch('/{notificationId}/read', TenantNotificationMarkReadController::class)
+                    ->name('read');
+
+                Route::delete('/{notificationId}', TenantNotificationDestroyController::class)
+                    ->name('destroy');
+            });
 
         Route::middleware(['phase5.tenant.active', 'phase4.profile.fresh'])->group(function (): void {
             Route::post('/tenant/invites', [InviteController::class, 'store'])

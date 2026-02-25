@@ -2,23 +2,32 @@
 
 namespace App\Providers;
 
+use App\Broadcasting\Phase6Broadcaster;
 use App\Events\Phase5\TenantStatusChanged;
+use App\Http\Middleware\ValidatePhase6BroadcastOrigin;
 use App\Listeners\Phase5\InvalidateTenantStatusCache;
+use App\Listeners\Phase6\SyncRealtimeCircuitBreakerWithTenantStatus;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\TenantPolicy;
+use App\Support\Phase6\BroadcastChannelRegistry;
 use App\Support\Phase5\PlatformContextStore;
 use App\Support\Sso\S2sCaller;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Psr\Log\LoggerInterface;
+use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
+use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -39,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureAuthorization();
         $this->configureRateLimiting();
         $this->configurePhase5();
+        $this->configurePhase6();
     }
 
     /**
@@ -125,10 +135,50 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(max(1, (int) config('phase5.telemetry.analytics.rate_limit_per_minute', 30)))
                 ->by('phase5-analytics|'.$request->ip());
         });
+
+        RateLimiter::for('phase6-broadcast-auth', static function (Request $request): Limit {
+            $hmacKey = (string) config('phase6.telemetry.fingerprint_hmac_key', 'phase6-fallback-key');
+            $channelFingerprint = hash_hmac('sha256', trim((string) $request->input('channel_name', '')), $hmacKey);
+            $sessionFingerprint = hash('sha256', (string) ($request->session()?->getId() ?? 'no-session'));
+            $userFingerprint = (string) ($request->user()?->getAuthIdentifier() ?? 'guest');
+            $ip = (string) ($request->ip() ?? 'unknown-ip');
+
+            return Limit::perMinute(max(1, (int) config('phase6.auth.rate_limit_per_minute', 90)))
+                ->by(implode('|', [
+                    'phase6-broadcast-auth',
+                    $userFingerprint,
+                    Str::substr($sessionFingerprint, 0, 24),
+                    Str::substr($channelFingerprint, 0, 24),
+                    $ip,
+                ]));
+        });
     }
 
     protected function configurePhase5(): void
     {
         Event::listen(TenantStatusChanged::class, InvalidateTenantStatusCache::class);
+    }
+
+    protected function configurePhase6(): void
+    {
+        Broadcast::extend('phase6', function ($app): Phase6Broadcaster {
+            return new Phase6Broadcaster($app->make(LoggerInterface::class));
+        });
+
+        Broadcast::routes([
+            'middleware' => [
+                'web',
+                InitializeTenancyByDomain::class,
+                PreventAccessFromCentralDomains::class,
+                'auth',
+                'phase5.tenant.active',
+                ValidatePhase6BroadcastOrigin::class,
+                'throttle:phase6-broadcast-auth',
+            ],
+        ]);
+
+        app(BroadcastChannelRegistry::class)->register();
+
+        Event::listen(TenantStatusChanged::class, SyncRealtimeCircuitBreakerWithTenantStatus::class);
     }
 }

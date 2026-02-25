@@ -118,3 +118,25 @@
   - `node scripts/ci/40_check_sso_csp_contract.mjs`
   - `node scripts/ci/50_check_sso_no_body_logs.mjs`
   - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
+
+## 9. Cierre Fase 6 (Operativo)
+- Documentación oficial de cierre:
+  - `docs/plans/phase-6-cierre-ejecucion.md`
+  - `docs/manuals/phase-6-manual-usuario.md`
+- Contratos funcionales obligatorios de Broadcasting:
+  - El endpoint `/broadcasting/auth` requiere autorización explícita fail-closed (`403` uniforme) bloqueando canales si falla validación de Origen en allowlist o mismatch de Tenant/Membresía.
+  - Realtime Circuit Breaker integrado: Si el `TenantStatus` se encuentra bloqueado (Fase 5), se denegarán accesos de broadcasting y se emitirá código `TENANT_STATUS_BLOCKED`.
+  - Los canales tenant-scoped confidenciales usan `authz_epoch` validable; ante una revocación de rol, este epoch se incrementa (invalidación determinista).
+  - Transmisión asíncrona robusta vía Outbox pattern: Las notificaciones utilizan un job (`ProcessTenantNotificationOutboxJob`) serializando los eventos y despachándolos de forma idempotente.
+- Certificación mínima requerida para cambios en Notificaciones y Eventos Tiempo Real:
+  - `php artisan test`
+  - `php artisan test tests/Feature/Phase6/Phase6ContractsTest.php --stop-on-failure`
+  - `npm run types`
+  - `node scripts/ci/00_guardrails.mjs`
+  - `node scripts/ci/10_check_react_tree.mjs`
+  - `node scripts/ci/20_check_shadcn_components_json.mjs`
+  - `npm run build`
+  - `VITE_ENTRY_KEY=resources/js/app.tsx node scripts/ci/30_check_vite_initial_js_budget.mjs`
+  - `node scripts/ci/40_check_sso_csp_contract.mjs`
+  - `node scripts/ci/50_check_sso_no_body_logs.mjs`
+  - `CI=1 PLAYWRIGHT_PORT=8010 npx playwright test --workers=1 --retries=0`
