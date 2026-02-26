@@ -1,121 +1,90 @@
 ---
-description: Backlog de pendientes para definir nueva fase de productizacion del boilerplate SaaS
+description: Backlog refinado para la productización del Control Plane y Tenant Lifecycle (Generic Boilerplate)
 ---
 
-# Fase 9 (propuesta) — Pendientes del boilerplate SaaS
+# Fase 9 (Propuesta Refinada) — Control Plane Provisioning & Tenant Lifecycle
 
-## 0) Estado actual (base existente)
+Basado en el análisis de riesgos operativos y para evitar que la productización introduzca deuda técnica o rompa invariantes de seguridad (tenancy fail-closed, anti-exfil, idempotencia), la Fase 9 se reestructura estrictamente en **tres entregables (9A, 9B, 9C)** enfocados en el "Generic Boilerplate".
 
-Actualmente el proyecto ya tiene:
+---
 
-- Panel Admin (`/admin/panel`) con acciones de lifecycle, hard-delete, telemetry, forensics, billing e impersonation.
-- Panel Tenant (`/tenant/settings`) con invitaciones, RBAC, auditoria y billing.
-- Soporte de i18n por middleware (`?lang=es|en`) y cookie `locale`.
-- Motor de modulos tenant-scoped (ejemplo: `sample-entities`).
+## 9A) Control Plane Provisioning (Hard Core)
 
-## 1) Bloqueantes para considerar el SaaS "listo para clientes reales"
+El objetivo es formalizar el "alta de tenant" no como un CRUD, sino como un **workflow orquestado del control plane** (agnóstico del entrypoint: admin manual o self-service futuro).
 
-1. **Alta de tenant desde Admin (UI + API) — BLOQUEANTE PRINCIPAL**
-   - No existe endpoint de creacion de tenant en `routes/admin.php`.
-   - No existe formulario en `/admin/panel` para crear tenant.
-   - Debe incluir:
-     - `tenant_id` (o generacion UUID server-side).
-     - dominio/subdominio inicial.
-     - estado inicial (`active`/`suspended`).
-     - metadata base (`name`, `plan`, etc).
+1. **State Machine y Orchestrator de Provisioning**
+   - Estado transicional: `tenants.status` debe incluir `provisioning`.
+   - Workflow atómico: Crear tenant -> Crear/Enlazar Owner -> Bootstrap RBAC/Entitlements -> Marcar como `active`.
+   - Si falla a la mitad, el tenant queda en `provisioning` (sin login operativo).
 
-2. **Asignacion de owner inicial durante onboarding — BLOQUEANTE**
-   - Falta flujo admin para:
-     - crear/enlazar usuario owner,
-     - crear membresia en `tenant_users`,
-     - asignar rol `owner` en el team del tenant,
-     - impedir tenant sin owner.
+2. **Idempotencia estricta por diseño**
+   - Implementar llave de idempotencia por request (header o field) en el orquestador.
+   - Reintentos con la misma llave deben retornar el resultado previo sin duplicar recursos.
+   - Unicidad fuerte en DB: `tenants.id` (UUID generado server-side) y normalización estricta de dominios (lowercase, trim).
 
-3. **Bootstrap automatico al crear tenant — BLOQUEANTE**
-   - Crear catalogo minimo de roles/permisos tenant.
-   - Crear entitlements iniciales segun plan.
-   - Registrar auditoria de provisioning.
+3. **Verificación de Propiedad de Dominios (Domain Control Validation)**
+   - Agregar dominios requiere probar control (prevención de subdomain takeover / hijacking).
+   - Implementar validación por registro TXT (DNS) o archivo HTTP (`/.well-known/...`).
+   - Invariante: Solo se emite el evento `domain.bound` cuando existe `domain.verified_at`.
 
-## 2) Pendientes funcionales de alta prioridad
+4. **Bootstrap inmutable de Roles y Permisos (Evitar RBAC Drift)**
+   - Catálogo base versionado en código. Sincronización idempotente por tenant al aprovisionar.
+   - Denylist estricto de permisos "imposibles" de asignar desde la UI del tenant (ej. mutaciones de billing global o lifecycle).
 
-1. **Gestion de usuarios del tenant (ciclo completo)**
-   - Hoy hay invite + RBAC, pero falta UX/API para:
-     - desactivar/reactivar miembro,
-     - revocar membresia,
-     - ban/unban,
-     - historial de cambios por miembro.
+5. **Observabilidad con Correlation IDs**
+   - Todo el flujo de onboarding debe compartir un `provisioning_correlation_id`.
+   - Este ID debe viajar en eventos (`tenant.created`, `owner.assigned`), auditoría forense y spans de OpenTelemetry para permitir debug y reintentos exactos.
 
-2. **Gestion de dominios por tenant (admin)**
-   - Agregar/quitar/cambiar dominio del tenant desde admin.
-   - Validaciones de unicidad, formato y colisiones con central domains.
+---
 
-3. **Vista detalle de tenant en Admin**
-   - Hoy hay listado agregado.
-   - Falta detalle operativo por tenant con:
-     - owner actual,
-     - miembros,
-     - plan/entitlements,
-     - auditoria y estado de integraciones.
+## 9B) Tenant Ops UX (Medium)
 
-4. **Flujo comercial minimo (alta cliente end-to-end)**
-   - Wizard: crear tenant -> owner -> plan -> dominio -> acceso inicial.
+Una vez que el motor de provisioning es robusto, se construyen las interfaces administrativas (admin) y operativas (tenant).
 
-## 3) Pendientes de Administración y Settings Generales (Standard Boilerplate Features)
+1. **Vista Detalle de Tenant en Admin**
+   - UI operativa por tenant: Owner actual, estado del provisioning, dominios vinculados (y su estado de verificación), plan/entitlements actuales y auditoría.
 
-1. **Gestión de roles y permisos desde UI Tenant (Avanzado)**
-   - Actualmente hay RBAC, pero falta la capacidad de crear/editar roles customizados por el tenant (si el plan lo permite).
-   
-2. **Configuración global del Tenant (Tenant Settings UI)**
-   - Editar nombre, logo/branding, zona horaria y preferencias generales.
+2. **Gestión completa del ciclo de vida de usuarios (Tenant UI)**
+   - Funcionalidades UX/API para el Owner:
+     - Desactivar/Reactivar miembro.
+     - Revocar membresía.
+     - Ban/Unban de usuarios problemáticos.
+     - Historial de cambios forenses por miembro.
 
-3. **Selector visual de idioma en UI (admin + tenant + central)**
-   - Hoy se cambia por query param (`?lang=es|en`).
-   - Falta control visible (dropdown/switch) en el layout base para el usuario final.
-   - Persistencia y UX: Sincronizar la cookie host-only existente con el perfil del usuario.
+3. **Owner Recovery (Break-glass Playbook)**
+   - Endpoint seguro y playbook administrativo para recuperar/reasignar el owner de un tenant cuando el original se pierde (ej. empleado desvinculado).
 
-## 4) Pendientes de robustez operativa
+---
 
-1. **Rate limits y validaciones de provisioning admin**
-   - Evitar alta duplicada de tenant por reintentos.
-   - Idempotencia en flujos de creacion.
+## 9C) Product Polish & Frontend (Soft)
 
-2. **Observabilidad del onboarding**
-   - Eventos de auditoria para cada paso critico:
-     - tenant.created,
-     - owner.assigned,
-     - domain.bound,
-     - onboarding.completed.
+Refinamientos de cara al usuario final y flujos comerciales.
 
-3. **Playbooks de soporte**
-   - Procedimiento para recuperacion de owner,
-   - procedimiento de cambio de dominio,
-   - procedimiento de suspension/reactivacion.
+1. **Selector Visual de Idioma (i18n UI Seguro)**
+   - Dropdown/switch visible en layouts (admin, tenant, central).
+   - Control estricto de scope de cookies (`__Host-locale` con `Secure`, `Path=/`, sin `Domain` amplio) para evitar cross-host cookie confusion.
+   - Evaluar sincronización con el perfil de usuario (solo si aplica al contexto específico para evitar filtrado de preferencias cross-tenant).
 
-## 5) Pendientes de QA/Certificacion para la nueva fase
+2. **Wizard Comercial End-to-End (UI Administrativa)**
+   - Pantallas en `/admin/panel` que consuman el orquestador de la fase 9A:
+     - Ingreso de datos básicos -> Selección/Creación de Owner (búsqueda por email auditada) -> Plan base -> Dominio inicial.
+     - Confirmación explícita antes de ejecutar (prevención de "wrong tenant assignment").
 
-1. Tests feature para onboarding admin (crear tenant + owner).
-2. Tests de permisos y guard rails (admin/platform vs tenant/web).
-3. Tests E2E del flujo comercial base.
-4. Tests i18n del selector visual + persistencia por host.
+---
 
-## 6) Propuesta de alcance para la nueva fase
+## QA & Certificación (Negative Testing)
 
-**Nombre sugerido:** Fase 9 — Generic Boilerplate Completion (Admin & Tenant Lifecycle).
+La certificación de esta fase se centra en **lo que NO debe pasar**:
 
-**Objetivo:**
-Cerrar las brechas operativas del boilerplate base para que sea funcionalmente equivalente a un panel productivo (estilo Nova/Filament), permitiendo la gestión completa del ciclo de vida de tenants, dominios, usuarios e idioma desde la UI, sin depender de seeders ni base de datos directa.
+1. **Idempotencia:** Reintentar "crear tenant" 5 veces con el mismo `idempotency_key` debe resultar en exactamente 1 tenant.
+2. **Domain Validation:** Intentar hacer bind de un dominio sin validación TXT/HTTP debe fallar cerrado (`fail-closed`).
+3. **Atomicidad de Owner:** Un fallo simulado durante la asignación del owner debe dejar el tenant en estado `provisioning` (inoperable), nunca activo y huérfano.
+4. **Cookie Scope:** Cambio de idioma no debe afectar sesiones o sobreescribir contextos por mal uso del atributo `Domain`.
+5. **Suspensión:** Cambiar estado a `suspended` revoca inmediatamente accesos en todos los paths (web, jobs, realtime).
 
-**Definition of Done (resumen):**
+---
 
-- Admin puede crear tenant, asignar dominio y definir owner inicial desde la UI (sin seeders).
-- Admin puede ver el detalle operativo de cada tenant.
-- Cada tenant puede gestionar su equipo completo (activar, desactivar, roles).
-- Idioma seleccionable por UI (dropdown) en admin/tenant/central con persistencia correcta.
-- Settings básicos del tenant editables por el owner.
-- Suite minima de pruebas automatizadas en verde para los nuevos flujos.
+## Preguntas/Definiciones Operativas para arrancar
 
-## 7) Preguntas abiertas para la discusion
-
-1. El alta de tenant sera exclusivamente manual (operador admin) o dejaremos preparada la base para un autoservicio (self-signup B2B) futuro?
-2. Al crear un tenant, ¿el owner inicial se crea siempre como un usuario nuevo o puede seleccionarse un usuario central existente buscando por email?
-3. ¿Qué planes comerciales iniciales definimos en los seeders (Starter/Pro/Enterprise) y qué entitlements base incluye cada uno para automatizar el bootstrap del tenant?
+1. **Planes y Entitlements:** ¿Migramos la definición de planes (Starter/Pro/Enterprise) de los seeders a una configuración inmutable versionada para que el orquestador sepa exactamente qué entitlements conceder en el bootstrap?
+2. **Verificación de Dominios:** ¿Para el MVP de verificación de dominios (9A) implementamos solo TXT record, o vamos directo por un proveedor (ej. Cloudflare API) si ya se usa bajo el capó?
